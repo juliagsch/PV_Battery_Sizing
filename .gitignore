@@ -1,0 +1,8 @@
+/.env
+data/load/faraday_large
+data/load/processed_poster
+data/solar/united
+data/solar/noisy
+data/solar/processed_all
+dataset/dataset_below_threshold_train.csv
+dataset/dataset_below_threshold_test.csv
