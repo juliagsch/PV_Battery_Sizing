@@ -55,6 +55,6 @@ The `model/train.py` script is used to train a Multi-Layer Perceptron (MLP) mode
 
 ## Sources
 
-\[1] Faraday: [https://www.centrefornetzero.org/technologies/faraday](https://www.centrefornetzero.org/technologies/faraday)
-\[2] PVWatts: [https://pvwatts.nrel.gov/pvwatts.php](https://pvwatts.nrel.gov/pvwatts.php)
-\[3] Robust Sizing Simulator: [https://github.com/BradHuang1999/Robust-Sizing/tree/master](https://github.com/BradHuang1999/Robust-Sizing/tree/master)
+[1] Faraday: [https://www.centrefornetzero.org/technologies/faraday](https://www.centrefornetzero.org/technologies/faraday)
+[2] PVWatts: [https://pvwatts.nrel.gov/pvwatts.php](https://pvwatts.nrel.gov/pvwatts.php)
+[3] Robust Sizing Simulator: [https://github.com/BradHuang1999/Robust-Sizing/tree/master](https://github.com/BradHuang1999/Robust-Sizing/tree/master)
