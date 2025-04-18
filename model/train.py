@@ -24,7 +24,7 @@ class SizingDataset(Dataset):
         return self.X[idx], self.y[idx]
 
 class MLP(nn.Module):
-    def __init__(self, input_size, hidden_size=512, output_size=2):
+    def __init__(self, input_size, hidden_size=2048, output_size=2):
         super(MLP, self).__init__()
         self.model = nn.Sequential(
             nn.Linear(input_size, hidden_size),
