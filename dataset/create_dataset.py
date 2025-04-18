@@ -98,19 +98,19 @@ if __name__ == "__main__":
     num_processes = multiprocessing.cpu_count()  # Get the number of available CPU cores
     print(f"Using {num_processes} processes for parallel execution.")
 
-    # for round_num in range(3):
-    #     random.shuffle(train_load)
-    #     random.shuffle(train_solar)
+    for round_num in range(3):
+        random.shuffle(train_load)
+        random.shuffle(train_solar)
 
-    #     tasks = []
-    #     for idx, solar_file in enumerate(train_solar):
-    #         load_file = train_load[idx]
-    #         tasks.append((round_num, idx, solar_file, load_file))
+        tasks = []
+        for idx, solar_file in enumerate(train_solar):
+            load_file = train_load[idx]
+            tasks.append((round_num, idx, solar_file, load_file))
 
-    #     with multiprocessing.Pool(processes=num_processes) as pool:
-    #         results = pool.map(process_pair_train, tasks)
+        with multiprocessing.Pool(processes=num_processes) as pool:
+            results = pool.map(process_pair_train, tasks)
 
-    #     print(f"Round {round_num + 1} completed.")
+        print(f"Round {round_num + 1} completed.")
     
     for round_num in range(3):
         random.shuffle(test_load)
