@@ -1,5 +1,9 @@
 /.env
 data/load/faraday_large
 data/load/processed_poster
+data/ev/train
+data/ev/test
 dataset/dataset_below_threshold_train.csv
 dataset/dataset_below_threshold_test.csv
+dataset_train.csv
+files_processed_train.csv
