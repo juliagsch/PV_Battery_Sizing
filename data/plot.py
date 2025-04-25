@@ -4,15 +4,15 @@ import matplotlib.pyplot as plt
 import os
 import random
 
-def read_and_process_hourly(file_path, average, day=0):
+def read_and_process_hourly(file_path, average, day=0, num_hours=24):
     with open(file_path, 'r') as file:
         # Read all lines and convert them to floats
         data = np.array([float(line.strip()) for line in file.readlines()])
 
     if(average):
-        hourly = [np.mean(data[hour::24]) for hour in range(24)]
+        hourly = [np.mean(data[hour::num_hours]) for hour in range(num_hours)]
     else:
-        hourly = data[day*24:day*24+24]
+        hourly = data[day*24:day*24+num_hours]
     
     return hourly
 
@@ -52,20 +52,28 @@ def read_and_process_monthly(file_path):
     return monthly_averages
 
 def analyze_and_plot_daily(load_files, average, datatype):
-    plt.figure(figsize=(10, 5))
+    plt.figure(figsize=(15, 10))
+    day = random.randint(0,364)
+
+    print(day)
 
     if(len(load_files)>10):
         load_files = random.sample(load_files, 10)
+
+    num_days = 3
+    num_hours = num_days*24
+    if(average):
+        num_hours = 24
     
     for load_file in load_files:
-        hourly = read_and_process_hourly(load_file, average)
+        hourly = read_and_process_hourly(load_file, average, day=day,num_hours=num_hours)
         label = load_file
-        plt.plot(range(24), hourly, label=label, marker='o')
+        plt.plot(range(num_hours), hourly, label=label, marker='o')
     
     plt.title(f'Average Hourly {datatype}')
     plt.xlabel('Hour of the Day')
     plt.ylabel(datatype)
-    plt.xticks(range(24), labels=[f'{hour}:00' for hour in range(24)], rotation=45)
+    plt.xticks(range(num_hours), labels=[f'{hour}:00' for hour in range(num_hours)], rotation=45)
     plt.grid(True)
     plt.legend()
     plt.tight_layout()
@@ -158,7 +166,7 @@ def get_solar_files():
     return [f"./data/solar/noisy/{f}" for f in os.listdir("./data/solar/noisy") if f.endswith('.txt')] + [f"./data/solar/processed_all/{f}" for f in os.listdir("./data/solar/processed_all/") if f.endswith('.txt')]
 
 # Plot the data
-average = True
+average = False
 load_files = get_load_files()
 analyze_and_plot_daily(load_files, datatype="Load", average=average)
 analyze_and_plot_weekly(load_files, datatype="Load", average=average)

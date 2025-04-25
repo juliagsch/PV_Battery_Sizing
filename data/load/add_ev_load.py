@@ -27,18 +27,23 @@ def get_soc(file):
         if arrival_hour < departure_hour:
             arrival_hour += 24
         # -1 if car is away
-        
+        previous_soc = 0
+        if not np.sum(soc[day*24+departure_hour:day*24+arrival_hour+1]) == 0:
+            previous_soc = np.sum([i for i in soc[day*24+departure_hour:day*24+arrival_hour+1] if i>0])
+
         soc[day*24+departure_hour:day*24+arrival_hour+1] = [-1]*(arrival_hour-departure_hour+1)
-        soc[day*24+arrival_hour+1] = soc_diff
+        soc[day*24+arrival_hour+1] = soc_diff+previous_soc
         total_load += soc_diff
         if max_soc_diff<soc_diff:
             max_soc_diff = soc_diff
+        if max_battery<float(trip[3]):
+            max_battery = float(trip[3])
     return soc, max_battery, total_load, max_soc_diff
 
 # Safe arrival: Fully charge EV once it arrives home. Pass max_battery as target battery level.
 # Arrival limit: Charge EV until user-specified limit. Pass min_battery as target battery level.
 def arrival_charge(hours, ev_b, target_battery):
-    ev_load = [0 for _ in range(hours)]
+    ev_load = [0]*hours
     if ev_b >= target_battery:
         return ev_load, ev_b
     
@@ -51,10 +56,10 @@ def arrival_charge(hours, ev_b, target_battery):
 # Augment load curve to ensure that we never charge more than charging rate in one timestep
 def crop_charging_rate(ev_load, min_load):
     scalable = [1 if i>0 else 0 for i in ev_load]
-    current_load = np.sum(ev_load)
 
     charging_limit = charging_rate*eta_ev_c
     while(True):
+        current_load = np.sum(ev_load)
         # Crop load during each hour to charging limit.
         for idx, load in enumerate(ev_load):
             if load > charging_limit:
@@ -64,6 +69,7 @@ def crop_charging_rate(ev_load, min_load):
         # If EV is still charged above the minimum battery level return the ev load.
         if current_load >= min_load:
             return ev_load
+
         load_deficit = min_load - current_load
         # If the curve cannot be scaled anymore, the solar production is insufficient to reach min battery level, the EV is charged before departure
         if np.sum(scalable) == 0:
@@ -78,9 +84,8 @@ def crop_charging_rate(ev_load, min_load):
         
         # Scale load in the remaining time steps to reach min production
         scalable_load = np.multiply(scalable, ev_load)
-        current_load = np.sum(scalable_load)
-        target_load = current_load + load_deficit
-        factor = target_load/current_load
+        scalable_total = np.sum(scalable_load)
+        factor = (load_deficit+scalable_total)/scalable_total
         scaled_load = scalable_load*factor
         ev_load = np.add(scaled_load, ev_load)
         assert np.sum(ev_load) > min_load
@@ -93,21 +98,23 @@ def get_load_trace(load_path, solar_path, ev_path, policy):
         solar_trace = [float(line.strip()) for line in file]
   
     total_solar = np.sum(solar_trace)
-    soc, ev_b, total_load, max_usage = get_soc(ev_path)
-    expected_pv = total_load/total_solar
-    print(expected_pv)
-    max_battery = ev_b
-    # min battery level should be equal to 20% full battery + longest trip usage.
+    soc, max_battery, total_load, max_usage = get_soc(ev_path)
+    expected_pv = (total_load*eta_ev_c)/total_solar
+    ev_b = max_battery
+
+    # min battery level should be equal to 20% full battery + longest trip usage. max_battery corresponds to 80% or the full battery.
     min_battery = min(max_usage+(max_battery*0.25), max_battery)
 
     ev_load = [0] * num_hours
-
-    solar_production = 0
     arrival_hour = 0
     hour = 0
+    total_charged = 0
+    soc_reduced = 0
+
     while hour < num_hours:
         # Check if EV left home
         if soc[hour] == -1:
+            solar_production = np.sum(solar_trace[arrival_hour:hour])
             if policy == "solar":
                 if solar_production > 0:
                     # The min battery level needs to be reached in any case
@@ -121,18 +128,21 @@ def get_load_trace(load_path, solar_path, ev_path, policy):
                 ev_load[arrival_hour:hour] = np.array(solar_trace[arrival_hour:hour])*factor
                 ev_load[arrival_hour:hour] = crop_charging_rate(ev_load[arrival_hour:hour], (min_battery - ev_b)*eta_ev_c)
                 ev_b += np.sum(ev_load[arrival_hour:hour])*charging_efficiency
+                total_charged += np.sum(ev_load[arrival_hour:hour])*charging_efficiency
             # Charge battery until min limit at arrival and charge to max battery or as far as possible with solar energy.
             elif policy == "safe_limit":
-                ev_load[arrival_hour:hour], ev_b = arrival_charge(hour-arrival_hour, ev_b, min_battery)
+                ev_load[arrival_hour:hour], ev_b_arrival = arrival_charge(hour-arrival_hour, ev_b, min_battery)
                 # Do not scale PV system by more than expected_pv to meet max battery level. 
-                if solar_production > 0:
-                    factor = min((max_battery-ev_b)*eta_ev_c/solar_production, expected_pv)
-                else:                    
+                if solar_production > 0 and ev_b_arrival < max_battery:
+                    factor = min((max_battery-ev_b_arrival)*eta_ev_c/solar_production, expected_pv)
+                else:
                     factor = 0
 
                 ev_load[arrival_hour:hour] += np.array(solar_trace[arrival_hour:hour])*factor
-                ev_load[arrival_hour:hour] = crop_charging_rate(ev_load[arrival_hour:hour], (min_battery - ev_b)*eta_ev_c)
+                ev_load[arrival_hour:hour] = crop_charging_rate(ev_load[arrival_hour:hour], max(0, (min_battery-ev_b)*eta_ev_c))
                 ev_b += np.sum(ev_load[arrival_hour:hour])*charging_efficiency
+                total_charged += np.sum(ev_load[arrival_hour:hour])*charging_efficiency
+
             # Fully charge EV when it arrives home.
             elif policy == "safe":
                 ev_load[arrival_hour:hour], ev_b = arrival_charge(hour-arrival_hour, ev_b, max_battery)
@@ -140,14 +150,13 @@ def get_load_trace(load_path, solar_path, ev_path, policy):
                 raise Exception(f"Invalid charging policy: {policy}")
 
             # Skip to arrival of EV
-            while soc[hour] == -1:
+            while soc[hour] == -1 and hour < num_hours:
                 hour += 1
-            ev_b -= soc[hour]
-            arrival_hour = hour
-            solar_production = 0
-        solar_production += solar_trace[hour]
-        hour += 1
 
+            ev_b -= soc[hour]
+            soc_reduced += soc[hour]
+            arrival_hour = hour
+        hour += 1
     load_trace = np.add(load_trace,ev_load)
     return load_trace, ev_load, soc
 
@@ -167,7 +176,7 @@ def get_files(filepath):
 Charging Policies:
 safe: Fully charge EV once it arrives home.
 safe limit : Charge EV at arrival until user-specified battery level.
-solar: Charge EV with solar energy. If before departure, the user-specified minimum battery level is not reached, charge until that leve.
+solar: Charge EV with solar energy. If before departure, the user-specified minimum battery level is not reached, charge until that level.
 """
 policies = ["safe", "safe_limit", "solar"] 
 
@@ -192,7 +201,8 @@ ev_train = get_ev_files("train")
 rounds = 1
 for round in range(rounds):
     for idx, load_path in enumerate(train_load[:1]):
-        ev_path = ev_train[random.randint(0, len(ev_train)-1)]
+        #ev_path = ev_train[random.randint(0, len(ev_train)-1)]
+        ev_path = "./data/ev/train/797.csv"
         solar_path = train_solar[random.randint(0, len(train_solar))]
         for policy in policies:
             modified_load, ev_load, soc = get_load_trace(load_path, solar_path, ev_path, policy=policy)
@@ -210,9 +220,6 @@ for round in range(rounds):
             with open(out, 'w') as f:
                 for value in soc:
                     f.write(f"{value}\n")
-        print(idx, load_path)
-        print(solar_path)
-        print(ev_path)
 
 
 
