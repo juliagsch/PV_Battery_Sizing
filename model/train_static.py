@@ -6,11 +6,12 @@ from torch.utils.data import DataLoader
 import numpy as np
 from torch.utils.data import Dataset
 from torch.utils.tensorboard import SummaryWriter
+import pandas as pd
 
 batch_size = 64
 num_epochs = 2000
-model_name = "PV_sizing"
-dataset_path = "/cluster/home/jgschwind/PV_Sizing"
+model_name = "PV_sizing_EV_static"
+dataset_path = "/cluster/home/jgschwind"
 
 class SizingDataset(Dataset):
     def __init__(self, X, y):
@@ -42,13 +43,28 @@ class MLP(nn.Module):
 # Tensorboard writer
 writer = SummaryWriter(f"runs/{model_name}")
 
-# Load train and test data
-data_train = torch.tensor(torch.from_numpy(np.loadtxt(f'{dataset_path}/dataset/dataset_below_threshold_train.csv', delimiter=",")), dtype=torch.float32)
-data_test = torch.tensor(torch.from_numpy(np.loadtxt(f'{dataset_path}/dataset/dataset_below_threshold_test.csv', delimiter=",")), dtype=torch.float32)
+# Load train and test csv
+df_train = pd.read_csv(f'{dataset_path}/dataset_train_static_interleaved.csv', header=None)
+df_test = pd.read_csv(f'{dataset_path}/dataset_test_static_interleaved.csv', header=None)
 
-X_train = data_train[:, :-2]  # The last two columns are the optimal battery and solar sizings
+print("Loading Data...")
+# Map charging policies to integer
+df_train.replace("safe", 0, inplace=True)
+df_train.replace("safe_limit", 1, inplace=True)
+df_train.replace("solar", 2, inplace=True)
+
+df_test.replace("safe", 0, inplace=True)
+df_test.replace("safe_limit", 1, inplace=True)
+df_test.replace("solar", 2, inplace=True)
+
+print("Create Tensors...")
+# Then into torch tensor
+data_train = torch.tensor(df_train.astype(float).to_numpy(), dtype=torch.float32)
+data_test = torch.tensor(df_test.astype(float).to_numpy(), dtype=torch.float32)
+
+X_train = data_train[:, :-3]  # The last 3 columns are the charging policy, optimal battery and solar sizings
 y_train = data_train[:, -2:]
-X_test = data_test[:, :-2]
+X_test = data_test[:, :-3]
 y_test = data_test[:, -2:]
 
 scaler = StandardScaler()
@@ -60,6 +76,7 @@ X_test_tensor = torch.tensor(X_test, dtype=torch.float32)
 y_train_tensor = torch.tensor(y_train, dtype=torch.float32)
 y_test_tensor = torch.tensor(y_test, dtype=torch.float32)
 
+print("Create Dataset...")
 # Create dataset and dataloaders
 train_dataset = SizingDataset(X_train_tensor, y_train_tensor)
 test_dataset = SizingDataset(X_test_tensor, y_test_tensor)
@@ -69,12 +86,14 @@ test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 input_size = X_train.shape[1]  # Number of features
 
+print("Initialize Model...")
 # Initialize model, loss, and optimizer
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = MLP(input_size=input_size).to(device)
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
+print("Start Training...")
 best_loss = float("inf")
 for epoch in range(num_epochs):
     total_loss = 0

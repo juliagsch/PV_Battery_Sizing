@@ -1,12 +1,11 @@
 import numpy as np
-import random
 from datetime import datetime
-import os
 
 charging_efficiency = 0.9
 eta_ev_c = 1.0/charging_efficiency
 charging_rate = 7.4
 num_hours = 8760
+# base_path = "/cluster/home/jgschwind/PV_Battery_Sizing"
 base_path = "."
 
 def get_soc(file):
@@ -91,7 +90,7 @@ def crop_charging_rate(ev_load, min_load):
         assert np.sum(ev_load) > min_load
 
 
-def get_load_trace(load_path, solar_path, ev_path, policy):
+def get_load_trace(load_path, solar_path, ev_path, policy, out):
     with open(load_path, 'r') as file:
         load_trace = [float(line.strip()) for line in file]
     with open(solar_path, 'r') as file:
@@ -108,8 +107,6 @@ def get_load_trace(load_path, solar_path, ev_path, policy):
     ev_load = [0] * num_hours
     arrival_hour = 0
     hour = 0
-    total_charged = 0
-    soc_reduced = 0
 
     while hour < num_hours:
         # Check if EV left home
@@ -128,7 +125,6 @@ def get_load_trace(load_path, solar_path, ev_path, policy):
                 ev_load[arrival_hour:hour] = np.array(solar_trace[arrival_hour:hour])*factor
                 ev_load[arrival_hour:hour] = crop_charging_rate(ev_load[arrival_hour:hour], (min_battery - ev_b)*eta_ev_c)
                 ev_b += np.sum(ev_load[arrival_hour:hour])*charging_efficiency
-                total_charged += np.sum(ev_load[arrival_hour:hour])*charging_efficiency
             # Charge battery until min limit at arrival and charge to max battery or as far as possible with solar energy.
             elif policy == "safe_limit":
                 ev_load[arrival_hour:hour], ev_b_arrival = arrival_charge(hour-arrival_hour, ev_b, min_battery)
@@ -141,7 +137,6 @@ def get_load_trace(load_path, solar_path, ev_path, policy):
                 ev_load[arrival_hour:hour] += np.array(solar_trace[arrival_hour:hour])*factor
                 ev_load[arrival_hour:hour] = crop_charging_rate(ev_load[arrival_hour:hour], max(0, (min_battery-ev_b)*eta_ev_c))
                 ev_b += np.sum(ev_load[arrival_hour:hour])*charging_efficiency
-                total_charged += np.sum(ev_load[arrival_hour:hour])*charging_efficiency
 
             # Fully charge EV when it arrives home.
             elif policy == "safe":
@@ -154,72 +149,11 @@ def get_load_trace(load_path, solar_path, ev_path, policy):
                 hour += 1
 
             ev_b -= soc[hour]
-            soc_reduced += soc[hour]
             arrival_hour = hour
         hour += 1
     load_trace = np.add(load_trace,ev_load)
-    return load_trace, ev_load, soc
 
-def get_ev_files(split):
-    return [f"./data/ev/{split}/{f}" for f in os.listdir(f"./data/ev/{split}") if f.endswith('.csv')]
-
-def get_files(filepath):
-    try:
-        with open(filepath, 'r') as f:
-            data_list = [line.strip() for line in f]
-        return data_list
-    except FileNotFoundError:
-        print(f"Error: File not found at {filepath}")
-        return []
-
-"""
-Charging Policies:
-safe: Fully charge EV once it arrives home.
-safe limit : Charge EV at arrival until user-specified battery level.
-solar: Charge EV with solar energy. If before departure, the user-specified minimum battery level is not reached, charge until that level.
-"""
-policies = ["safe", "safe_limit", "solar"] 
-
-for policy in policies:
-    os.makedirs(f"{base_path}/data/load/{policy}", exist_ok=True)
-
-train_solar_filepath = f"{base_path}/dataset/train_solar.txt"
-test_solar_filepath = f"{base_path}/dataset/test_solar.txt"
-train_load_filepath = f"{base_path}/dataset/train_load.txt"
-test_load_filepath = f"{base_path}/dataset/test_load.txt"
-
-test_load = get_files(test_load_filepath)
-test_solar = get_files(test_solar_filepath)
-train_load = get_files(train_load_filepath)
-train_solar = get_files(train_solar_filepath)
-
-# Remove data that already includes EV
-train_load = [f for f in train_load if "EV" not in f]
-test_load = [f for f in test_load if "EV" not in f]
-ev_train = get_ev_files("train")
-
-rounds = 1
-for round in range(rounds):
-    for idx, load_path in enumerate(train_load[:1]):
-        #ev_path = ev_train[random.randint(0, len(ev_train)-1)]
-        ev_path = "./data/ev/train/797.csv"
-        solar_path = train_solar[random.randint(0, len(train_solar))]
-        for policy in policies:
-            modified_load, ev_load, soc = get_load_trace(load_path, solar_path, ev_path, policy=policy)
-
-            #save load trace
-            out = f"{base_path}/data/load/{policy}/{round}_{idx}.txt"
-            with open(out, 'w') as f:
-                for value in modified_load:
-                    f.write(f"{value}\n")
-            out = f"{base_path}/data/load/{policy}/{round}_{idx}_ev.txt"
-            with open(out, 'w') as f:
-                for value in ev_load:
-                    f.write(f"{value}\n")
-            out = f"{base_path}/data/load/{policy}/{round}_{idx}_soc.txt"
-            with open(out, 'w') as f:
-                for value in soc:
-                    f.write(f"{value}\n")
-
-
-
+    # Save modified load trace to txt file
+    with open(out, 'w') as f:
+        for value in load_trace:
+            f.write(f"{value}\n")
