@@ -5,7 +5,9 @@ data/ev/train
 data/ev/test
 dataset/dataset_below_threshold_train.csv
 dataset/dataset_below_threshold_test.csv
+model/out
 dataset_train.csv
 files_processed_train.csv
 dataset_test.csv
 files_processed_test.csv
+runs

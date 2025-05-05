@@ -9,8 +9,8 @@ from torch.utils.tensorboard import SummaryWriter
 import pandas as pd
 
 batch_size = 64
-num_epochs = 2000
-model_name = "PV_sizing_EV_sopevs_interleaved"
+num_epochs = 1000
+model_name = "PV_sizing_EV_sopevs_interleaved_onehot"
 dataset_path = "/cluster/home/jgschwind"
 
 class SizingDataset(Dataset):
@@ -44,16 +44,43 @@ class MLP(nn.Module):
 writer = SummaryWriter(f"runs/{model_name}")
 
 # Load train and test csv
-df_train = pd.read_csv(f'{dataset_path}/dataset_train_interleaved.csv', header=None)
-df_test = pd.read_csv(f'{dataset_path}/dataset_test_interleaved.csv', header=None)
+df_train = pd.read_csv(f'{dataset_path}/dataset_train_interleaved_threshold3020.csv', header=None)
+df_test = pd.read_csv(f'{dataset_path}/dataset_test_interleaved_threshold3020.csv', header=None)
 
-# Map charging policies to integer
-policies = ["safe_arrival", "safe_departure", "arrival_limit", "lbn_limit"]
-for idx, policy in enumerate(policies):
-    df_train.replace(policy, idx, inplace=True)
-    df_test.replace(policy, idx, inplace=True)
+# Print max values
+battery_col_idx = df_train.shape[1] - 2
+pv_col_idx = df_train.shape[1] - 1
 
-# Then into torch tensor
+max_battery = df_train[battery_col_idx].max()
+max_pv = df_train[pv_col_idx].max()
+
+print(f"Max Battery Size Train: {max_battery}")
+print(f"Max PV Size Train: {max_pv}")
+
+max_battery = df_test[battery_col_idx].max()
+max_pv = df_test[pv_col_idx].max()
+
+print(f"Max Battery Size Test: {max_battery}")
+print(f"Max PV Size Test: {max_pv}")
+
+# Rename policy column for clarity
+df_train = df_train.rename(columns={17520: "policy"})
+df_test = df_test.rename(columns={17520: "policy"})
+
+# Convert policy column to string
+df_train["policy"] = df_train["policy"].astype(str)
+df_test["policy"] = df_test["policy"].astype(str)
+
+# One-hot encode the 'policy' column
+df_train = pd.get_dummies(df_train, columns=["policy"])
+df_test = pd.get_dummies(df_test, columns=["policy"])
+
+# Align test with train (fill missing columns with 0s)
+df_test = df_test.reindex(columns=df_train.columns, fill_value=0)
+
+print(df_test.filter(like="policy_").head())
+
+# Now convert to float and tensor
 data_train = torch.tensor(df_train.astype(float).to_numpy(), dtype=torch.float32)
 data_test = torch.tensor(df_test.astype(float).to_numpy(), dtype=torch.float32)
 
@@ -125,5 +152,9 @@ torch.save(model.state_dict(), f"{model_name}.pth")
 print("Model saved successfully!")
 
 # Compute Mean Squared Error (MSE)
-mse = np.mean((test_predictions - y_test.numpy()) ** 2, axis=0)
+mse = np.mean((test_predictions - y_test_tensor.numpy()) ** 2, axis=0)
 print(f"Test MSE for Battery: {mse[0]:.4f}, Solar: {mse[1]:.4f}")
+
+# Compute Mean Absolute Error (MAE)
+mae = np.mean(abs(test_predictions - y_test_tensor.numpy()), axis=0)
+print(f"Test MAE for Battery: {mae[0]:.4f}, Solar: {mae[1]:.4f}")

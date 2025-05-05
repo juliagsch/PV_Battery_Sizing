@@ -10,7 +10,7 @@ import pandas as pd
 
 batch_size = 64
 num_epochs = 2000
-model_name = "PV_sizing_EV_static"
+model_name = "PV_sizing_EV_static_test"
 dataset_path = "/cluster/home/jgschwind"
 
 class SizingDataset(Dataset):
@@ -44,8 +44,24 @@ class MLP(nn.Module):
 writer = SummaryWriter(f"runs/{model_name}")
 
 # Load train and test csv
-df_train = pd.read_csv(f'{dataset_path}/dataset_train_static_interleaved.csv', header=None)
-df_test = pd.read_csv(f'{dataset_path}/dataset_test_static_interleaved.csv', header=None)
+df_train = pd.read_csv(f'{dataset_path}/dataset_train_static_interleaved_threshold3020.csv', header=None)
+df_test = pd.read_csv(f'{dataset_path}/dataset_test_static_interleaved_threshold3020.csv', header=None)
+
+# Print max values
+battery_col_idx = df_train.shape[1] - 2
+pv_col_idx = df_train.shape[1] - 1
+
+max_battery = df_train[battery_col_idx].max()
+max_pv = df_train[pv_col_idx].max()
+
+print(f"Max Battery Size Train: {max_battery}")
+print(f"Max PV Size Train: {max_pv}")
+
+max_battery = df_test[battery_col_idx].max()
+max_pv = df_test[pv_col_idx].max()
+
+print(f"Max Battery Size Test: {max_battery}")
+print(f"Max PV Size Test: {max_pv}")
 
 print("Loading Data...")
 # Map charging policies to integer
