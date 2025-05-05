@@ -84,7 +84,7 @@ def crop_charging_rate(ev_load, min_load):
         # Scale load in the remaining time steps to reach min production
         scalable_load = np.multiply(scalable, ev_load)
         scalable_total = np.sum(scalable_load)
-        factor = (load_deficit+scalable_total)/scalable_total
+        factor = load_deficit/scalable_total
         scaled_load = scalable_load*factor
         ev_load = np.add(scaled_load, ev_load)
         assert np.sum(ev_load) > min_load
