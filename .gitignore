@@ -4,3 +4,5 @@ data/load/processed_poster
 data/ev
 dataset/dataset_below_threshold_train.csv
 dataset/dataset_below_threshold_test.csv
+model/out
+runs

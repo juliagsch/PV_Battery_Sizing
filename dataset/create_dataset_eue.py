@@ -28,7 +28,7 @@ def process_pair_train(args):
     round_num, eue_target, solar_file, load_file = args
 
     try:
-        command = f"{base_path}/sim_brad 1250 460 70 225 1 {eue_target} 0.9 365 {load_file} {solar_file}"
+        command = f"{base_path}/sim_huang 1250 460 70 225 1 {eue_target} 0.9 365 {load_file} {solar_file}"
         result = subprocess.run(command.split(), stdout=subprocess.PIPE, text=True)
         result = result.stdout.split("\t")
         battery, solar = result[0], result[1]
@@ -61,7 +61,7 @@ def process_pair_test(args):
         with open(solar_file, 'r') as file:
             solar_trace = [float(line.strip()) for line in file]
 
-        command = f"{base_path}/sim_brad 1250 460 70 225 1 {eue_target} 0.9 365 {load_file} {solar_file}"
+        command = f"{base_path}/sim_huang 1250 460 70 225 1 {eue_target} 0.9 365 {load_file} {solar_file}"
         result = subprocess.run(command.split(), stdout=subprocess.PIPE, text=True)
         result = result.stdout.split("\t")
         battery, solar = result[0], result[1]
