@@ -15,10 +15,11 @@ class EV:
     battery_size_kwh: float
     min_charge_kwh: float
 
+base_path = "/cluster/home/jgschwind/PV_Battery_Sizing"
 def get_files(filepath):
     try:
         with open(filepath, 'r') as f:
-            data_list = [line.strip() for line in f]
+            data_list = [base_path + line.strip()[1:] for line in f]
         return data_list
     except FileNotFoundError:
         print(f"Error: File not found at {filepath}")
@@ -26,29 +27,30 @@ def get_files(filepath):
 
 def process_pair(args):
     ev_path, solar_file, load_file, op, ev, split = args
+    eue_target = random.randint(0,90)/100.0
 
     try:
-        command = f"./sim 1250 460 70 225 0 0.15 0.9 365 {load_file} {solar_file} 0.8 0.2 {ev.battery_size_kwh} 7.4 {op} {ev_path} {ev.min_charge_kwh}"
+        command = f"{base_path}/sim 1250 460 70 225 1 {eue_target} 0.9 365 {load_file} {solar_file} 0.8 0.2 {ev.battery_size_kwh} 7.4 {op} {ev_path} {ev.min_charge_kwh}"
         result = subprocess.run(command.split(), stdout=subprocess.PIPE, text=True)
         result = result.stdout.split("\t")
         battery, solar = result[0], result[1]
+        if float(battery) < 20 and float(solar) < 10:
+            with open(solar_file, 'r') as file:
+                solar_trace = [float(line.strip()) for line in file]
+            
+            with open(load_file, 'r') as file:
+                load_trace = [float(line.strip()) for line in file]
 
-        with open(solar_file, 'r') as file:
-            solar_trace = [float(line.strip()) for line in file]
-        
-        with open(load_file, 'r') as file:
-            load_trace = [float(line.strip()) for line in file]
+            ev_data = [op, ev.num_commute_trips, ev.num_non_commute_trips, ev.avg_commute_distance, ev.avg_non_commute_distance, ev.battery_size_kwh, ev.min_charge_kwh]
+            line = solar_trace + load_trace + ev_data + [eue_target, battery, solar]
 
-        ev_data = [op, ev.num_commute_trips, ev.num_non_commute_trips, ev.avg_commute_distance, ev.avg_non_commute_distance, ev.battery_size_kwh, ev.min_charge_kwh]
-        line = solar_trace + load_trace + ev_data + [battery, solar]
-
-        with open(f"dataset_{split}.csv", 'a', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(line)
-        with open(f"files_processed_{split}.csv", 'a', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow([solar_file])
-            writer.writerow([load_file])
+            with open(f"dataset_{split}_eue.csv", 'a', newline='') as file:
+                writer = csv.writer(file)
+                writer.writerow(line)
+            with open(f"files_processed_{split}_eue.csv", 'a', newline='') as file:
+                writer = csv.writer(file)
+                writer.writerow([solar_file])
+                writer.writerow([load_file])
         return True
     except Exception as e:
         print(f"Error processing {solar_file} and {load_file}: {e}")
@@ -56,12 +58,12 @@ def process_pair(args):
 
 
 if __name__ == "__main__":
-    num_runs = 1
+    num_runs = 3
     ev_consumption = 0.164 #kWh/km
-    train_solar_filepath = "./dataset/train_solar.txt"
-    test_solar_filepath = "./dataset/test_solar.txt"
-    train_load_filepath = "./dataset/train_load.txt"
-    test_load_filepath = "./dataset/test_load.txt"
+    train_solar_filepath = base_path + "/dataset/train_solar.txt"
+    test_solar_filepath = base_path + "/dataset/test_solar.txt"
+    train_load_filepath = base_path + "/dataset/train_load.txt"
+    test_load_filepath = base_path + "/dataset/test_load.txt"
 
     test_load = get_files(test_load_filepath)
     test_solar = get_files(test_solar_filepath)
@@ -72,7 +74,7 @@ if __name__ == "__main__":
     train_load = [f for f in train_load if "EV" not in f]
     test_load = [f for f in test_load if "EV" not in f]
 
-    num_processes = 4 #multiprocessing.cpu_count()  # Get the number of available CPU cores
+    num_processes = 16 #multiprocessing.cpu_count()  # Get the number of available CPU cores
     policies = ["safe_arrival", "safe_departure", "arrival_limit", "lbn_limit"]
 
     print(f"Using {num_processes} processes for parallel execution.")
@@ -96,13 +98,13 @@ if __name__ == "__main__":
             max_distance = max(ev.avg_commute_distance, ev.avg_non_commute_distance)
             ev.min_charge_kwh = max_distance * ev_consumption + ev.battery_size_kwh * 0.2
 
-            ev_path = f"./data/ev/train/{idx}.csv"
+            ev_path = f"{base_path}/data/ev/train/{idx}.csv"
             wfh_days = random.sample([0,1,2,3,4], 5-ev.num_commute_trips)
 
             schedule = [0 for _ in range(5)]
             for wfh_day in wfh_days:
                 schedule[wfh_day] = 1
-            ev_trace = f"python ./data/ev/ev_simulation.py --output {ev_path} --days 365 --ev_battery {ev.battery_size_kwh} --max_soc 0.8 --min_soc 0.2 --consumption 164 --wfh_monday {schedule[0]} --wfh_tuesday {schedule[1]} --wfh_wednesday {schedule[2]} --wfh_thursday {schedule[3]}  --wfh_friday {schedule[4]} --C_dist {ev.avg_commute_distance} --C_dept 8.00 --C_arr 18.00 --N_nc {ev.num_non_commute_trips} --Nc_dist {ev.avg_non_commute_distance}"
+            ev_trace = f"python {base_path}/data/ev/ev_simulation.py --output {ev_path} --days 365 --ev_battery {ev.battery_size_kwh} --max_soc 0.8 --min_soc 0.2 --consumption 164 --wfh_monday {schedule[0]} --wfh_tuesday {schedule[1]} --wfh_wednesday {schedule[2]} --wfh_thursday {schedule[3]}  --wfh_friday {schedule[4]} --C_dist {ev.avg_commute_distance} --C_dept 8.00 --C_arr 18.00 --N_nc {ev.num_non_commute_trips} --Nc_dist {ev.avg_non_commute_distance}"
             _ = subprocess.run(ev_trace.split(), stdout=subprocess.PIPE, text=True)
 
             for op in policies:
@@ -133,13 +135,13 @@ if __name__ == "__main__":
             max_distance = max(ev.avg_commute_distance, ev.avg_non_commute_distance)
             ev.min_charge_kwh = max_distance * ev_consumption + ev.battery_size_kwh * 0.2
 
-            ev_path = f"./data/ev/test/{idx}.csv"
+            ev_path = f"{base_path}/data/ev/test/{idx}.csv"
             wfh_days = random.sample([0,1,2,3,4], 5-ev.num_commute_trips)
 
             schedule = [0 for _ in range(5)]
             for wfh_day in wfh_days:
                 schedule[wfh_day] = 1
-            ev_trace = f"python ./data/ev/ev_simulation.py --output {ev_path} --days 365 --ev_battery {ev.battery_size_kwh} --max_soc 0.8 --min_soc 0.2 --consumption 164 --wfh_monday {schedule[0]} --wfh_tuesday {schedule[1]} --wfh_wednesday {schedule[2]} --wfh_thursday {schedule[3]}  --wfh_friday {schedule[4]} --C_dist {ev.avg_commute_distance} --C_dept 8.00 --C_arr 18.00 --N_nc {ev.num_non_commute_trips} --Nc_dist {ev.avg_non_commute_distance}"
+            ev_trace = f"python {base_path}/data/ev/ev_simulation.py --output {ev_path} --days 365 --ev_battery {ev.battery_size_kwh} --max_soc 0.8 --min_soc 0.2 --consumption 164 --wfh_monday {schedule[0]} --wfh_tuesday {schedule[1]} --wfh_wednesday {schedule[2]} --wfh_thursday {schedule[3]}  --wfh_friday {schedule[4]} --C_dist {ev.avg_commute_distance} --C_dept 8.00 --C_arr 18.00 --N_nc {ev.num_non_commute_trips} --Nc_dist {ev.avg_non_commute_distance}"
             _ = subprocess.run(ev_trace.split(), stdout=subprocess.PIPE, text=True)
 
             for op in policies:
