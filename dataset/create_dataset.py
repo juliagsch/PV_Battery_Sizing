@@ -5,6 +5,10 @@ import time
 import multiprocessing
 import random
 
+self_sufficiency_target = 1.0 # Specify what percentage of load should be covered by solar production. [Range: 0.1-1.0]
+confidence = 0.9 # Specify at what confidence the self sufficiency target should be met. [Range: 0.1-1.0]
+
+eue_target = 1.0 - self_sufficiency_target
 
 def get_solar_files():
     return [f"./data/solar/processed_all/{f}" for f in os.listdir("./data/solar/processed_all") if f.endswith('.txt')] + [f"./data/solar/noisy/{f}" for f in os.listdir("./data/solar/noisy") if f.endswith('.txt')]
@@ -29,7 +33,7 @@ def process_pair_train(args):
     round_num, idx, solar_file, load_file = args
 
     try:
-        command = f"./sim_huang 1250 460 70 225 0 0.15 0.9 365 {load_file} {solar_file}"
+        command = f"./sim_huang 1250 460 70 225 1 {eue_target} {confidence} 365 {load_file} {solar_file}"
         result = subprocess.run(command.split(), stdout=subprocess.PIPE, text=True)
         result = result.stdout.split("\t")
         battery, solar = result[0], result[1]
@@ -61,7 +65,7 @@ def process_pair_test(args):
         with open(solar_file, 'r') as file:
             solar_trace = [float(line.strip()) for line in file]
 
-        command = f"./sim_huang 1250 460 70 225 0 0.15 0.9 365 {load_file} {solar_file}"
+        command = f"./sim_huang 1250 460 70 225 1 {eue_target} {confidence} 365 {load_file} {solar_file}"
         result = subprocess.run(command.split(), stdout=subprocess.PIPE, text=True)
         result = result.stdout.split("\t")
         battery, solar = result[0], result[1]
