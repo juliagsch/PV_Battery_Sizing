@@ -1,8 +1,15 @@
 /.env
 data/load/faraday_large
 data/load/processed_poster
+data/solar/noisy
+data/solar/processed_all
+data/solar/united
 data/ev
 dataset/dataset_below_threshold_train.csv
 dataset/dataset_below_threshold_test.csv
+dataset/test_load.txt
+dataset/train_load.txt
+dataset/train_solar.txt
+dataset/test_solar.txt
 model/out
 runs
