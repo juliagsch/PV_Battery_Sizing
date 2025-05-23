@@ -16,6 +16,7 @@ class EV:
     min_charge_kwh: float
 
 base_path = "/cluster/home/jgschwind/PV_Battery_Sizing"
+out_path = "/cluster/scratch/jgschwind"
 def get_files(filepath):
     try:
         with open(filepath, 'r') as f:
@@ -34,7 +35,7 @@ def process_pair(args):
         result = subprocess.run(command.split(), stdout=subprocess.PIPE, text=True)
         result = result.stdout.split("\t")
         battery, solar = result[0], result[1]
-        if float(battery) < 20 and float(solar) < 10:
+        if float(battery) < 30 and float(solar) < 20:
             with open(solar_file, 'r') as file:
                 solar_trace = [float(line.strip()) for line in file]
             
@@ -44,10 +45,10 @@ def process_pair(args):
             ev_data = [op, ev.num_commute_trips, ev.num_non_commute_trips, ev.avg_commute_distance, ev.avg_non_commute_distance, ev.battery_size_kwh, ev.min_charge_kwh]
             line = solar_trace + load_trace + ev_data + [eue_target, battery, solar]
 
-            with open(f"dataset_{split}_eue.csv", 'a', newline='') as file:
+            with open(f"{out_path}/dataset_{split}_eveue_large_64.csv", 'a', newline='') as file:
                 writer = csv.writer(file)
                 writer.writerow(line)
-            with open(f"files_processed_{split}_eue.csv", 'a', newline='') as file:
+            with open(f"{out_path}/files_processed_{split}_eveue_large_64.csv", 'a', newline='') as file:
                 writer = csv.writer(file)
                 writer.writerow([solar_file])
                 writer.writerow([load_file])
@@ -58,12 +59,15 @@ def process_pair(args):
 
 
 if __name__ == "__main__":
-    num_runs = 3
+    num_runs = 9
     ev_consumption = 0.164 #kWh/km
     train_solar_filepath = base_path + "/dataset/train_solar.txt"
     test_solar_filepath = base_path + "/dataset/test_solar.txt"
     train_load_filepath = base_path + "/dataset/train_load.txt"
     test_load_filepath = base_path + "/dataset/test_load.txt"
+
+    id = random.randint(0,9999999999999)
+    os.mkdir(f"{base_path}/data/ev/train/{id}")
 
     test_load = get_files(test_load_filepath)
     test_solar = get_files(test_solar_filepath)
@@ -74,10 +78,11 @@ if __name__ == "__main__":
     train_load = [f for f in train_load if "EV" not in f]
     test_load = [f for f in test_load if "EV" not in f]
 
-    num_processes = 16 #multiprocessing.cpu_count()  # Get the number of available CPU cores
+    num_processes = 64 #multiprocessing.cpu_count()  # Get the number of available CPU cores
     policies = ["safe_arrival", "safe_departure", "arrival_limit", "lbn_limit"]
 
     print(f"Using {num_processes} processes for parallel execution.")
+
     for round_num in range(num_runs):
         random.shuffle(train_load)
         random.shuffle(train_solar)
@@ -98,7 +103,7 @@ if __name__ == "__main__":
             max_distance = max(ev.avg_commute_distance, ev.avg_non_commute_distance)
             ev.min_charge_kwh = max_distance * ev_consumption + ev.battery_size_kwh * 0.2
 
-            ev_path = f"{base_path}/data/ev/train/{idx}.csv"
+            ev_path = f"{base_path}/data/ev/train/{id}/{idx}.csv"
             wfh_days = random.sample([0,1,2,3,4], 5-ev.num_commute_trips)
 
             schedule = [0 for _ in range(5)]
@@ -126,7 +131,7 @@ if __name__ == "__main__":
             ev = EV(
                 num_commute_trips=random.randint(0,5),
                 num_non_commute_trips=random.randint(0,7),
-                avg_commute_distance=random.randint(10, 110),
+                avg_commute_distance=random.randint(10, 100),
                 avg_non_commute_distance=random.randint(10,20),
                 battery_size_kwh=random.randint(50,100),
                 min_charge_kwh=0.0

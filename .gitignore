@@ -3,8 +3,12 @@ data/load/faraday_large
 data/load/processed_poster
 data/ev/train
 data/ev/test
+data/test
 dataset/dataset_below_threshold_train.csv
 dataset/dataset_below_threshold_test.csv
+dataset/dataset_test_eue_interleaved_threshold3020.csv
+dataset/dataset_test_eveue_interleaved.csv
+dataset/dataset_test_pecan.csv
 model/out
 dataset_train.csv
 files_processed_train.csv
