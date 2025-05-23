@@ -101,6 +101,7 @@ if __name__ == "__main__":
             # Set min charge based on maximum expected distance
             max_distance = max(ev.avg_commute_distance, ev.avg_non_commute_distance)
             ev.min_charge_kwh = max_distance * ev_consumption + ev.battery_size_kwh * 0.2
+            ev.min_charge_kwh = min(ev.min_charge_kwh, ev.battery_size_kwh)
 
             ev_path = f"{base_path}/data/ev/test/{idx}.csv"
             wfh_days = random.sample([0,1,2,3,4], 5-ev.num_commute_trips)

@@ -1,4 +1,8 @@
+"""
+Code adapted from https://github.com/amcberkes/SPAGHETTI.
+"""
 import csv
+import os
 
 def time_to_minutes(time_str):
     """Converts a time string in HH:MM format to minutes since midnight."""
@@ -63,8 +67,6 @@ def merge_trips(trips):
 
     return merged_trips
 
-
-
 def process_file(input_file, output_file):
     with open(input_file, mode='r') as infile, open(output_file, mode='w', newline='') as outfile:
         reader = csv.reader(infile)
@@ -92,5 +94,8 @@ def process_file(input_file, output_file):
         for merged_trip in merge_trips(current_trips):
             writer.writerow(merged_trip)
 
-# replace this with the input and output file names
-# process_file('ev_data_simple.csv', 'merged_ev_usage.csv')
+def get_ev_files():
+    return [f for f in os.listdir("./data/ev/out") if f.endswith('.csv')]
+
+for file in get_ev_files():
+    process_file(f"./data/ev/out/{file}", f"./data/ev/merged/{file}")

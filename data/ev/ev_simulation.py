@@ -1,3 +1,6 @@
+"""
+Code adapted from https://github.com/amcberkes/SPAGHETTI.
+"""
 # This generator does not allow for fine-grained control of the non-commuting trips, use ev_simulation_extended.py if you wish more fine grained control over the non-commuting trips.
 # each trip is outputed separately and multiple trips on the same day are not grouped together, use merge_trips.py to merge overalpping trips.
 import argparse
@@ -5,7 +8,6 @@ import numpy as np
 import csv
 import random
 import os
-from merge_trips import process_file
 
 class ElectricVehicle:
     def __init__(self, battery_size, max_soc, min_soc, consumption):
@@ -58,17 +60,18 @@ def generate_trip_data(args, ev):
         energy_used = (distance_km * ev.consumption) / 1000  # Convert Wh to kWh
         soc_after_trip = current_soc - energy_used
         return max(ev.min_soc * ev.battery_size, soc_after_trip)
+    
     # N_nc is the number of weekly non-commuting round trips
-    average_non_commute_trips_per_day = args.N_nc / 7
     average_holiday_weeks = args.N_hw
     average_speed_kmh = 50
     week_number = 0
     holiday_weeks = random.sample([i for i in range(1,53)], average_holiday_weeks)
-    print(holiday_weeks)
+
     for day in range(args.days):
         week_day = day % 7
         if(week_day == 0):
             week_number += 1
+            non_commute_days = [random.randint(0, 6) for _ in range(args.N_nc)]
         is_wfh_day = wfh_days.get(week_day, 0) == 1
         is_weekend = week_day in [5, 6]
         # assume the EV is fully charged at the beginning of each day
@@ -86,10 +89,10 @@ def generate_trip_data(args, ev):
             current_soc = soc_end
 
         # Non-commuting trips
-        num_non_commute_trips = np.random.poisson(average_non_commute_trips_per_day)
+        num_non_commute_trips = non_commute_days.count(week_day)
         for _ in range(num_non_commute_trips):
             t_dep = sample_non_commute_times(args)
-            non_commute_dist = args.Nc_dist
+            non_commute_dist = random.uniform(args.Nc_dist - args.Nc_dist * 0.1, args.Nc_dist + args.Nc_dist * 0.1)
             travel_time_hours = non_commute_dist / average_speed_kmh
              # we assume that for non commuting trips, the EV is driving a 20% of the trip duration 
             trip_duration = 5*travel_time_hours
@@ -119,7 +122,7 @@ def format_time(time_float):
     return f"{hours:02d}:{minutes:02d}"
 
 def sample_commute_times(args):
-    """Sample departure and arrival times for commuting, ensuring consistency"""
+    """Sample departure and arrival times for commuting"""
     t_dep_hour = random.uniform(args.C_dept - 0.25, args.C_dept + 0.25)  # Departure time with small variance
     t_arr_hour = random.uniform(args.C_arr - 0.25, args.C_arr + 0.25)  # Arrival time with small variance
     
@@ -129,9 +132,8 @@ def sample_commute_times(args):
     return t_dep_hour, t_arr_hour
 
 def sample_non_commute_times(args):
-    """Randomly sample departure time for non-commuting trips, ensuring consistency"""
+    """Randomly sample departure time for non-commuting trips"""
     t_dep_hour = random.uniform(8, 20)  # Assuming non-commuting trips can start between 8 AM and 8 PM
-    
     return t_dep_hour
 
 def write_to_csv(file_name, data):
@@ -142,23 +144,11 @@ def write_to_csv(file_name, data):
             for trip in trips:
                 writer.writerow([day, *trip])
 
-
-def run_simulation(args):
-    validate_input(args)
-    ev = ElectricVehicle(args.ev_battery, args.max_soc, args.min_soc, args.consumption)
-    return generate_trip_data(args, ev)
-
-
 def main(args):
     validate_input(args)
     ev = ElectricVehicle(args.ev_battery, args.max_soc, args.min_soc, args.consumption)
     trip_data = generate_trip_data(args, ev)
-    temp_path = str(random.randint(1000, 9999))+"_temp.csv"
-    write_to_csv(temp_path, trip_data)
-    process_file(temp_path, args.output)
-
-    if os.path.exists(temp_path):
-        os.remove(temp_path)
+    write_to_csv(args.output, trip_data)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Sample synthetic EV usage data.')
