@@ -12,13 +12,13 @@ PVWATTS_KEY= os.getenv("PVWATTS_KEY")
 # API endpoint
 base_url = "https://developer.nrel.gov/api/pvwatts/v8.json"
 
-# Define UK longitude and latitude bounds
+# Define approximate UK longitude and latitude bounds
 # lat_min, lat_max = 49.0, 62.0
 # lon_min, lon_max = -8.0, 2.0
 
-# Include northern islands
-# lat_min, lat_max = 59.0, 61.0
-# lon_min, lon_max = -2.0, -0.7
+# Include european locations
+# lat_min, lat_max = 32, 72
+# lon_min, lon_max = -12, 48
 
 # Include worldwide locations
 lat_min, lat_max = -70.0, 70.0
@@ -44,6 +44,21 @@ while success_count<1000:
         "lat": lat,
         "lon": lon,
         "timeframe": "hourly",
+        # "dataset": "intl"
+    }
+
+    param_intl = {
+        "format": "json",
+        "api_key": PVWATTS_KEY,
+        "azimuth": 180,
+        "system_capacity": 1,
+        "losses": 14,
+        "array_type": 0,
+        "module_type": 0,
+        "tilt": 20,
+        "lat": lat,
+        "lon": lon,
+        "timeframe": "hourly",
         "dataset": "intl"
     }
 
@@ -58,5 +73,21 @@ while success_count<1000:
             for value in ac:
                 wr.writerow([value / 1000.0])
         success_count += 1
+    
+    # If call fails, try again with international dataset
+    elif response.status_code == 422:
+        response = requests.get(base_url, params=param_intl)
+
+        # Check if the request was successful
+        if response.status_code == 200:
+            data = response.json()
+            ac = data["outputs"]["ac"]
+            with open(f'./data/solar/pvwatts/{lat}_{lon}.txt', 'w', newline='') as f:
+                wr = csv.writer(f, delimiter=',')
+                for value in ac:
+                    wr.writerow([value / 1000.0])
+            success_count += 1
+        else:
+            print(f"Error: {response.status_code}, {response.text}")
     else:
         print(f"Error: {response.status_code}, {response.text}")

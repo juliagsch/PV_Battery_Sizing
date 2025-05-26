@@ -6,7 +6,7 @@ import webbrowser
 import os
 
 def get_solar_files():
-    return [f[:-4] for f in os.listdir("./data/solar/united") if f.endswith('.txt')]
+    return [f[:-4] for f in os.listdir("./data/solar/pvwatts_original") if f.endswith('.txt')]
 
 # Define coordinates (latitude, longitude)
 files = get_solar_files()
@@ -20,6 +20,6 @@ for lat, lon in coordinates:
     folium.Marker([lat, lon], popup=f"({lat}, {lon})").add_to(m)
 
 # Save the map as an HTML file
-map_path = "./data/solar/map.html"
+map_path = "map.html"
 m.save(map_path)
 webbrowser.open("file://" + map_path)

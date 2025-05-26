@@ -4,6 +4,30 @@ import matplotlib.pyplot as plt
 import os
 import random
 
+def sum_values_in_file(filepath):
+    with open(filepath, 'r') as f:
+        return sum(float(line.strip()) for line in f if line.strip())
+
+def plot_histogram_of_sums(folder_path, title="", x_label="", y_label=""):
+    sums = []
+
+    for filename in os.listdir(folder_path):
+        if filename.endswith('.txt'):
+            filepath = os.path.join(folder_path, filename)
+            try:
+                file_sum = sum_values_in_file(filepath)
+                sums.append(file_sum)
+            except Exception as e:
+                print(f"Skipping {filename} due to error: {e}")
+
+    # Plot histogram
+    plt.hist(sums, bins=30, edgecolor='black')
+    plt.title(title)
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.grid(True)
+    plt.show()
+
 def read_and_process_hourly(file_path, average, day=0, num_hours=24):
     with open(file_path, 'r') as file:
         # Read all lines and convert them to floats
@@ -60,7 +84,7 @@ def analyze_and_plot_daily(load_files, average, datatype):
     if(len(load_files)>10):
         load_files = random.sample(load_files, 10)
 
-    num_days = 3
+    num_days = 1
     num_hours = num_days*24
     if(average):
         num_hours = 24
@@ -158,21 +182,28 @@ def plot_comparison(average):
 
 def get_load_files():
     files = []
-    for type in ["Detached", "EV", "NoLCT", "Semi-detached", "Terraced"]:
-        files = files + [f"./data/load/processed_poster/{type}/{f}" for f in os.listdir(f"./data/load/processed_poster/{type}") if f.endswith('.txt')]
+    for type in ["original", "averaged_month", "averaged_week", "noisy_month", "noisy_week"]:
+        files = files + [f"./data/load/faraday_yearly/{type}/{f}" for f in os.listdir(f"./data/load/faraday_yearly/{type}") if f.endswith('.txt')]
     return files
 
 def get_solar_files():
-    return [f"./data/solar/noisy/{f}" for f in os.listdir("./data/solar/noisy") if f.endswith('.txt')] + [f"./data/solar/processed_all/{f}" for f in os.listdir("./data/solar/processed_all/") if f.endswith('.txt')]
+    return [f"./data/solar/pvwatts_original/{f}" for f in os.listdir("./data/solar/pvwatts_original") if f.endswith('.txt')] + [f"./data/solar/augmented/{f}" for f in os.listdir("./data/solar/augmented") if f.endswith('.txt')]
+
+# Histograms
+# plot_histogram_of_sums('./data/solar/augmented')
+# plot_histogram_of_sums('./data/load/faraday_yearly/noisy_month')
 
 # Plot the data
 average = False
 load_files = get_load_files()
+# file = "DetachedA_1"
+# load_files = [f"./data/load/faraday_yearly/noisy_week/{file}.txt",  f"./data/load/faraday_yearly/noisy_month/{file}.txt", f"./data/load/faraday_yearly/averaged_month/{file}.txt", f"./data/load/faraday_yearly/averaged_week/{file}.txt", f"./data/load/faraday_yearly/original/{file}.txt"]
 analyze_and_plot_daily(load_files, datatype="Load", average=average)
 analyze_and_plot_weekly(load_files, datatype="Load", average=average)
 analyze_and_plot_monthly(load_files, datatype="Load")
 
 solar_files = get_solar_files()
+# solar_files = ["./data/solar/augmented/-0.8422586169802599_-47.30465736486602.txt", "./data/solar/pvwatts_original/-0.8422586169802599_-47.30465736486602.txt"]
 analyze_and_plot_daily(solar_files, datatype="Solar", average=average)
 analyze_and_plot_weekly(solar_files, datatype="Solar", average=average)
 analyze_and_plot_monthly(solar_files, datatype="Solar")
