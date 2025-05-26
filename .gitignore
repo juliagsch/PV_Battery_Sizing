@@ -3,10 +3,13 @@ __pycache__/
 .DS_Store
 **/.DS_Store
 
-data/load/faraday_large
-data/load/processed_poster
-data/ev/out
-data/ev/merged
+data/load/faraday_responses
+data/load/faraday_yearly
+
+data/solar/augmented
+data/solar/pvwatts_original
+
+data/ev/ev_traces
 data/test
 
 dataset/dataset_below_threshold_train.csv
