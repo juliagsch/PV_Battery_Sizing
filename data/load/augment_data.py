@@ -139,10 +139,12 @@ country_profiles = [shift_italy, shift_germany, shift_spain, shift_sweden]
 for _ in range(duplicates_per_trace):
     for filepath in load_files:
         trace = np.loadtxt(filepath, delimiter=",")
-        augmented_series = add_noise(trace)
-        augmented_series = scale_time_series(augmented_series)
+
         # Choose a random country profile according to which the load curve will be shifted in time
-        augmented_series = random.choice(country_profiles)(augmented_series)
+        augmented_series = random.choice(country_profiles)(trace)
+
+        augmented_series = add_noise(augmented_series)
+        augmented_series = scale_time_series(augmented_series)
 
         filename = os.path.basename(filepath)
         output_path = os.path.join(out_dir, filename)
