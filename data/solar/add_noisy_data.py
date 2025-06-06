@@ -42,16 +42,18 @@ def shift_time_series(time_series, shift_range=(0.9, 1.1)):
 
 
 load_files = get_solar_files()
+num_runs = 3
 
-for file in load_files:
-    data = np.loadtxt(file, delimiter=",")
-    modified_series= modify_cloudiness(time_series=data)
-    modified_series, shift = shift_time_series(modified_series)
+for i in range(num_runs):
+    for file in load_files:
+        data = np.loadtxt(file, delimiter=",")
+        modified_series= modify_cloudiness(time_series=data)
+        modified_series, shift = shift_time_series(modified_series)
 
-    file_name = os.path.basename(file)
-    noisy_file = f"./data/solar/augmented/{file_name}"
-    # Save noisy data to txt with each value on a new line
-    with open(noisy_file, 'w') as f:
-        for value in modified_series:
-            f.write(f"{value}\n")
+        file_name = os.path.basename(file)[:-4]
+        noisy_file = f"./data/solar/augmented/{file_name}_{i}.txt"
+        # Save noisy data to txt with each value on a new line
+        with open(noisy_file, 'w') as f:
+            for value in modified_series:
+                f.write(f"{value}\n")
 

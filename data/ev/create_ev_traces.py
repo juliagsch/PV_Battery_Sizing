@@ -18,7 +18,7 @@ class EV:
     battery_size_kwh: float
 
 if __name__ == "__main__":
-    num_samples = 5000
+    num_samples = 8000
     file_names = []
     
     while len(file_names) < num_samples:
@@ -34,18 +34,19 @@ if __name__ == "__main__":
         ev.avg_commute_distance = 0 if ev.num_commute_trips == 0 else ev.avg_commute_distance
         ev.avg_non_commute_distance = 0 if ev.num_non_commute_trips == 0 else ev.avg_non_commute_distance
 
-        file_name = f"{ev.num_commute_trips}_{ev.num_non_commute_trips}_{ev.avg_commute_distance}_{ev.avg_non_commute_distance}_{ev.battery_size_kwh}"
-        
-        # Avoid duplicates
-        if file_name in file_names:
-            continue
-
-        ev_path = f"{base_path}/data/ev/out/{file_name}_.csv"
         wfh_days = random.sample([0,1,2,3,4], 5-ev.num_commute_trips)
 
         schedule = [0 for _ in range(5)]
         for wfh_day in wfh_days:
             schedule[wfh_day] = 1
+
+        file_name = f"{'_'.join(str(item) for item in schedule)}_{ev.num_non_commute_trips}_{ev.avg_commute_distance}_{ev.avg_non_commute_distance}_{ev.battery_size_kwh}"
+        
+        # Avoid duplicates
+        if file_name in file_names:
+            continue
+
+        ev_path = f"{base_path}/data/ev/ev_traces/{file_name}_.csv"
 
         ev_trace = f"python {base_path}/data/ev/ev_simulation.py --output {ev_path} --days 365 --ev_battery {ev.battery_size_kwh} --max_soc 0.8 --min_soc 0.2 --consumption 164 --wfh_monday {schedule[0]} --wfh_tuesday {schedule[1]} --wfh_wednesday {schedule[2]} --wfh_thursday {schedule[3]}  --wfh_friday {schedule[4]} --C_dist {ev.avg_commute_distance} --C_dept 8.00 --C_arr 18.00 --N_nc {ev.num_non_commute_trips} --Nc_dist {ev.avg_non_commute_distance}"
         _ = subprocess.run(ev_trace.split(), stdout=subprocess.PIPE, text=True)

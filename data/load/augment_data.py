@@ -10,8 +10,12 @@ import numpy as np
 import os
 import random
 
-def get_load_files(dir):
-    return [f"./data/load/faraday_yearly/averaged_{dir}/{f}" for f in os.listdir(f"./data/load/faraday_yearly/averaged_{dir}") if f.endswith('.txt')]
+def get_load_files():
+    files = []
+    for dir in ["averaged_week", "original"]:
+        files = files + [f"./data/load/faraday_yearly/{dir}/{f}" for f in os.listdir(f"./data/load/faraday_yearly/{dir}") if f.endswith('.txt')]
+    return files
+
 
 def add_noise(time_series, mean=0.0, stddev=0.1):
     """
@@ -127,16 +131,15 @@ def shift_spain(time_series):
 
 
 # Create noisy traces
-duplicates_per_trace = 1
-dir = "week"
-load_files = get_load_files(dir)
+duplicates_per_trace = 8
+load_files = get_load_files()
 
-out_dir = f"./data/load/faraday_yearly/noisy_{dir}"
+out_dir = f"./data/load/faraday_yearly/noisy"
 os.makedirs(out_dir, exist_ok=True)
 
 country_profiles = [shift_italy, shift_germany, shift_spain, shift_sweden]
 
-for _ in range(duplicates_per_trace):
+for i in range(duplicates_per_trace):
     for filepath in load_files:
         trace = np.loadtxt(filepath, delimiter=",")
 
@@ -146,8 +149,8 @@ for _ in range(duplicates_per_trace):
         augmented_series = add_noise(augmented_series)
         augmented_series = scale_time_series(augmented_series)
 
-        filename = os.path.basename(filepath)
-        output_path = os.path.join(out_dir, filename)
+        filename = os.path.basename(filepath).split(".")[0]
+        output_path = os.path.join(out_dir, filename+f"_{i}.txt")
 
         with open(output_path, 'w') as f:
             for value in augmented_series:
