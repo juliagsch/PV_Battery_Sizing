@@ -8,17 +8,17 @@ def sum_values_in_file(filepath):
     with open(filepath, 'r') as f:
         return sum(float(line.strip()) for line in f if line.strip())
 
-def plot_histogram_of_sums(folder_path, title="", x_label="", y_label=""):
+def plot_histogram_of_sums(folder_paths, title="", x_label="", y_label=""):
     sums = []
-
-    for filename in os.listdir(folder_path):
-        if filename.endswith('.txt'):
-            filepath = os.path.join(folder_path, filename)
-            try:
-                file_sum = sum_values_in_file(filepath)
-                sums.append(file_sum)
-            except Exception as e:
-                print(f"Skipping {filename} due to error: {e}")
+    for folder_path in folder_paths:
+        for filename in os.listdir(folder_path):
+            if filename.endswith('.txt'):
+                filepath = os.path.join(folder_path, filename)
+                try:
+                    file_sum = sum_values_in_file(filepath)
+                    sums.append(file_sum)
+                except Exception as e:
+                    print(f"Skipping {filename} due to error: {e}")
 
     # Plot histogram
     plt.hist(sums, bins=30, edgecolor='black')
@@ -147,26 +147,26 @@ def plot_comparison(average):
     """Plot the original solar traces against the modified ones."""
     plt.figure(figsize=(10, 5))
     # Noisy and original solar trace close to London
-    solar_files = ["data/solar/united/51.274968555509965_0.02652752499690436.txt", "data/solar/noisy/51.274968555509965_0.02652752499690436.txt"]
+    solar_files = ["data/solar/augmented/51.27165376446782_-1.7111768025104812_0.txt", "data/solar/pvwatts_original/51.27165376446782_-1.7111768025104812.txt"]
     # Days in Jan, Apr and July to compare
-    days = [0, 92, 183]
+    days = [0, 92, 184]
     for day in days:
         for solar_file in solar_files:
             hourly = read_and_process_hourly(solar_file, average=average, day=day)
-            if "noisy" in solar_file:
+            if "augmented" in solar_file:
                 label = "Augmented"
-                line = "-"
+                line = "--"
             else:
                 label = "Original"
-                line = "--"
+                line = "-"
             if day == 0:
-                color = "tab:orange"
+                color = "tab:gray"
                 label += " Jan"
             elif day == 92:
                 color = "tab:blue"
                 label += " Apr"
             else:
-                color = "tab:green"
+                color = "tab:orange"
                 label += " Jul"
             plt.plot(range(24), hourly, label=label,linestyle=line, color=color)
 
@@ -177,13 +177,21 @@ def plot_comparison(average):
     plt.grid(True)
     plt.legend()
     plt.tight_layout()
-    plt.savefig('./data/solar/augmented_vs_original.png')
+    plt.savefig('./data/solar/augmented_vs_original.png', transparent=True)
     plt.show()
 
 def get_load_files():
     files = []
-    for type in ["original", "averaged_month", "averaged_week", "noisy_month", "noisy_week"]:
+    for type in ["original", "averaged_week", "noisy"]:
         files = files + [f"./data/load/faraday_yearly/{type}/{f}" for f in os.listdir(f"./data/load/faraday_yearly/{type}") if f.endswith('.txt')]
+    return files
+
+def get_test_files():
+    files = []
+    for type in ["california"]:
+        files = files + [f"./data/test/load/{type}/15min/{f}" for f in os.listdir(f"./data/test/load/{type}/15min") if f.endswith('.txt')]
+    for type in ["scaled"]:
+        files = files + [f"./data/test/load/{type}/{f}" for f in os.listdir(f"./data/test/load/{type}") if f.endswith('.txt')]
     return files
 
 def get_solar_files():
@@ -203,7 +211,7 @@ analyze_and_plot_weekly(load_files, datatype="Load", average=average)
 analyze_and_plot_monthly(load_files, datatype="Load")
 
 solar_files = get_solar_files()
-# solar_files = ["./data/solar/augmented/-0.8422586169802599_-47.30465736486602.txt", "./data/solar/pvwatts_original/-0.8422586169802599_-47.30465736486602.txt"]
+# solar_files = ["./data/solar/augmented/-1.5700415108701549_18.806886679398247.txt", "./data/solar/pvwatts_original/-1.5700415108701549_18.806886679398247.txt"]
 analyze_and_plot_daily(solar_files, datatype="Solar", average=average)
 analyze_and_plot_weekly(solar_files, datatype="Solar", average=average)
 analyze_and_plot_monthly(solar_files, datatype="Solar")
