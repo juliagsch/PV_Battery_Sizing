@@ -3,7 +3,7 @@ import random
 
 def get_load_files():
     files = []
-    for type in ["original", "averaged_month", "averaged_week", "noisy_month", "noisy_week"]:
+    for type in ["original", "averaged_week", "noisy"]:
         dir_path = f"./data/load/faraday_yearly/{type}"
         files += [os.path.join(dir_path, f) for f in os.listdir(dir_path) if f.endswith('.txt')]
     return files
