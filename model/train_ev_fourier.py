@@ -55,18 +55,61 @@ class MLP_Branched(nn.Module):
         return self.regressor(combined)
 
 """
-Estract k FFT features from solar and load traces and concatenate them.
+Extract k FFT features from solar and load traces and concatenate them.
 Assumes that solar and load traces are interleaved.
 """
-def extract_fft_features(data, k=128):
+def extract_fft_features(data, k=128, aligned=False, firstk=False):
     fft_features = []
-    for i in range(data.shape[0]):
-        fft_mag = np.abs(np.fft.rfft(data[i,::2]))
-        top_k_pv = np.sort(fft_mag)[-k:]
-        fft_mag = np.abs(np.fft.rfft(data[i,1::2]))
-        top_k_battery = np.sort(fft_mag)[-k:]
-        fft_features.append(np.concatenate([top_k_pv, top_k_battery]))   
+    # We take the maximum magnitude of load and the magnitude of pv at the same index
+    # Then we repeat the same while first taking from PV.
+    # We repeat until 2*k magnitudes are collected.
+    if aligned:
+        for i in range(data.shape[0]):
+            solar = data[i,:8760]
+            load = data[i,8760:]
+            assert load.shape == solar.shape
+            fft_mag_load = np.abs(np.fft.rfft(load))
+            fft_mag_solar = np.abs(np.fft.rfft(solar))
+            top_k = []
+            for _ in range(int(k/2)):
+                max_load_idx = np.argmax(fft_mag_load)
+                top_k.append(fft_mag_solar[max_load_idx])
+                top_k.append(fft_mag_load[max_load_idx])
 
+                fft_mag_load = np.delete(fft_mag_load, max_load_idx)
+                fft_mag_solar = np.delete(fft_mag_solar, max_load_idx)
+
+                max_solar_idx = np.argmax(fft_mag_solar)
+                top_k.append(fft_mag_solar[max_solar_idx])
+                top_k.append(fft_mag_load[max_solar_idx])
+                fft_mag_load = np.delete(fft_mag_load, max_solar_idx)
+                fft_mag_solar = np.delete(fft_mag_solar, max_solar_idx)
+            assert len(top_k) == 2*k
+            fft_features.append(top_k) 
+    # We take the first k magnitudes for pv and load
+    elif firstk:
+        for i in range(data.shape[0]):
+            solar = data[i,:8760]
+            load = data[i,8760:]
+            assert load.shape == solar.shape
+            fft_mag = np.abs(np.fft.rfft(solar))
+            top_k_solar = fft_mag[:k]
+            fft_mag = np.abs(np.fft.rfft(load))
+            top_k_load = fft_mag[:k]
+            
+            fft_features.append(np.concatenate([top_k_solar, top_k_load])) 
+    # We take the sorted maximum magnitudes for pv and load
+    else:
+        for i in range(data.shape[0]):
+            solar = data[i,:8760]
+            load = data[i,8760:]
+            assert load.shape == solar.shape
+            fft_mag = np.abs(np.fft.rfft(solar))
+            top_k_solar = np.sort(fft_mag)[-k:]
+            fft_mag = np.abs(np.fft.rfft(load))
+            top_k_load = np.sort(fft_mag)[-k:]
+            fft_features.append(np.concatenate([top_k_solar, top_k_load])) 
+    
     return np.array(fft_features)
 
 """ Extract FFT of load and solar traces, labels and metadata including EV data and EUE from test data."""
@@ -90,7 +133,7 @@ def preprocess(df):
 
 if __name__ == "__main__":
     # Input data
-    model_name = "CNN_MLP_fourier_2x68000_256"
+    model_name = "CNN_MLP_fourier_244000_bi_8000"
     batch_size = 64
     num_epochs = 500
     validation_split = 0.1
@@ -103,8 +146,8 @@ if __name__ == "__main__":
     writer = SummaryWriter(f"runs/{model_name}")
 
     # Load and process data
-    df_train = pd.read_csv(f'{scratch_path}/dataset_train_eveue_interleaved.csv', header=None)
-    df_test = pd.read_csv(f'{scratch_path}/dataset_test_eveue_interleaved.csv', header=None)
+    df_train = pd.read_csv(f'{scratch_path}/dataset_train_allpolicies8000.csv', header=None)
+    df_test = pd.read_csv(f'{scratch_path}/dataset_test_allpolicies8000.csv', header=None)
 
     train_traces, train_meta_df, y_train = preprocess(df_train)
     test_traces, test_meta_df, y_test = preprocess(df_test)
@@ -133,6 +176,15 @@ if __name__ == "__main__":
     M_test_tensor = torch.tensor(test_meta, dtype=torch.float32)
     y_test_tensor = torch.tensor(y_test, dtype=torch.float32)
 
+    # Specify limit of labels to test on
+    max_threshold_battery = 20
+    max_threshold_pv = 10
+    # Filter test set to only include battery < 20 and pv < 10
+    mask = (y_test_tensor[:, 0] < max_threshold_battery) & (y_test_tensor[:, 1] < max_threshold_pv)
+    X_test_tensor_lim = X_test_tensor[mask]
+    M_test_tensor_lim = M_test_tensor[mask]
+    y_test_tensor_lim = y_test_tensor[mask]
+
     # Get train and val split
     full_dataset = SizingDataset(X_train_tensor, M_train_tensor, y_train_tensor)
     val_size = int(len(full_dataset) * validation_split)
@@ -142,6 +194,7 @@ if __name__ == "__main__":
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(SizingDataset(X_test_tensor, M_test_tensor, y_test_tensor), batch_size=batch_size, shuffle=False)
+    test_loader_lim = DataLoader(SizingDataset(X_test_tensor_lim, M_test_tensor_lim, y_test_tensor_lim), batch_size=batch_size, shuffle=False)
 
     # Initialize model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -197,13 +250,29 @@ if __name__ == "__main__":
 
     # Concatenate predictions
     test_predictions = torch.cat(all_preds).numpy()
-    torch.save(model.state_dict(), f"{model_name}.pth")
-    print("Final model saved.")
 
     # Compute Mean Squared Error (MSE)
     mse = np.mean((test_predictions - y_test_tensor.numpy()) ** 2, axis=0)
-    print(f"Test MSE - Battery: {mse[0]:.4f}, Solar: {mse[1]:.4f}")
+    print(f"Test MSE Full - Battery: {mse[0]:.4f}, Solar: {mse[1]:.4f}")
     
     # Compute Mean Absolute Error (MAE)
     mae = np.mean(np.abs(test_predictions - y_test_tensor.numpy()), axis=0)
-    print(f"Test MAE - Battery: {mae[0]:.4f}, Solar: {mae[1]:.4f}")
+    print(f"Test MAE Full - Battery: {mae[0]:.4f}, Solar: {mae[1]:.4f}")
+
+    # Test on limited test set
+    all_preds = []
+    with torch.no_grad():
+        for X_batch, M_batch, _ in test_loader_lim:
+            preds = model(X_batch.to(device), M_batch.to(device))
+            all_preds.append(preds.cpu())
+
+    # Concatenate predictions
+    test_predictions = torch.cat(all_preds).numpy()
+
+    # Compute Mean Squared Error (MSE)
+    mse = np.mean((test_predictions - y_test_tensor_lim.numpy()) ** 2, axis=0)
+    print(f"Test MSE Limit - Battery: {mse[0]:.4f}, Solar: {mse[1]:.4f}")
+    
+    # Compute Mean Absolute Error (MAE)
+    mae = np.mean(np.abs(test_predictions - y_test_tensor_lim.numpy()), axis=0)
+    print(f"Test MAE Limit - Battery: {mae[0]:.4f}, Solar: {mae[1]:.4f}")

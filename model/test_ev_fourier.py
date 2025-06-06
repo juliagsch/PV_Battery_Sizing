@@ -12,7 +12,7 @@ from train_ev_fourier import MLP_Branched, SizingDataset, preprocess
 
 
 batch_size = 64
-model_name = "CNN_MLP_fourier_2x68000_256"
+model_name = "CNN_MLP_fourier_244000_bi_8000"
 home_path = "."
 scratch_path = "./dataset"
 
@@ -21,21 +21,26 @@ max_threshold_battery = 20
 max_threshold_pv = 10
 
 # Specify which policies to exclude from testing if applicable
-exclude_policies = ["policy_arrival_limit"]
+policies = ["policy_safe_arrival", "policy_safe_departure", "policy_arrival_limit", "policy_bidirectional"]
+exclude_policies = []
+# exclude_policies = ["policy_safe_arrival", "policy_safe_departure", "policy_arrival_limit"]
+# exclude_policies = ["policy_safe_arrival", "policy_safe_departure", "policy_bidirectional"]
+# exclude_policies = ["policy_safe_arrival", "policy_arrival_limit", "policy_bidirectional"]
+# exclude_policies = ["policy_safe_departure", "policy_arrival_limit", "policy_bidirectional"]
 
+print([i for i in policies if i not in exclude_policies])
 
 if __name__ == "__main__":
-    df_test = pd.read_csv(f'{scratch_path}/dataset_test_eveue_interleaved.csv', header=None)
-    test_traces, test_meta_df, y_test = preprocess(df_test)
+    df_test = pd.read_csv(f'{scratch_path}/dataset_scaled_pecan.csv', header=None)
+    test_traces, test_meta, y_test = preprocess(df_test)
 
     # Specify which policies to test
     for policy in exclude_policies:
-        mask = test_meta_df[policy] == False
-        test_meta = test_meta_df[mask]
+        mask = test_meta[policy] == False
+        test_meta = test_meta[mask]
         test_traces = test_traces[mask]
         y_test = y_test[mask]
 
-    # Scale input
     scaler_ts= joblib.load(f"{home_path}/model/out/scaler_ts_{model_name}.pkl")
     scaler_meta= joblib.load(f"{home_path}/model/out/scaler_meta_{model_name}.pkl")
 
