@@ -97,5 +97,7 @@ def process_file(input_file, output_file):
 def get_ev_files():
     return [f for f in os.listdir("./data/ev/out") if f.endswith('.csv')]
 
+os.makedirs("./data/ev/ev_traces", exist_ok=True)
+
 for file in get_ev_files():
-    process_file(f"./data/ev/out/{file}", f"./data/ev/merged/{file}")
+    process_file(f"./data/ev/out/{file}", f"./data/ev/ev_traces/{file}")

@@ -1,6 +1,7 @@
 """
 Create EV traces using SPAGHETTI by Berkes et. al. https://doi.org/10.1186/s42162-024-00314-6
 """
+import os
 import random
 import subprocess
 
@@ -21,6 +22,7 @@ if __name__ == "__main__":
     num_samples = 8000
     file_names = []
     
+    os.makedirs("./data/ev/out", exist_ok=True)
     while len(file_names) < num_samples:
         ev = EV(
             num_commute_trips=random.randint(0,5), # per week
@@ -46,7 +48,7 @@ if __name__ == "__main__":
         if file_name in file_names:
             continue
 
-        ev_path = f"{base_path}/data/ev/ev_traces/{file_name}_.csv"
+        ev_path = f"{base_path}/data/ev/out/{file_name}_.csv"
 
         ev_trace = f"python {base_path}/data/ev/ev_simulation.py --output {ev_path} --days 365 --ev_battery {ev.battery_size_kwh} --max_soc 0.8 --min_soc 0.2 --consumption 164 --wfh_monday {schedule[0]} --wfh_tuesday {schedule[1]} --wfh_wednesday {schedule[2]} --wfh_thursday {schedule[3]}  --wfh_friday {schedule[4]} --C_dist {ev.avg_commute_distance} --C_dept 8.00 --C_arr 18.00 --N_nc {ev.num_non_commute_trips} --Nc_dist {ev.avg_non_commute_distance}"
         _ = subprocess.run(ev_trace.split(), stdout=subprocess.PIPE, text=True)
