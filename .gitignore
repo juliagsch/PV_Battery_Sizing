@@ -4,11 +4,16 @@ __pycache__/
 .DS_Store
 **/.DS_Store
 
-data/load/faraday_responses
-data/load/faraday_yearly
+data/grid_intensities24.txt
+data/load/test
+data/load/train
+data/load/val
 
-data/solar/augmented
-data/solar/pvwatts_original
+data/solar/val
+data/solar/train
+data/solar/test
+
+wandb
 
 data/ev/ev_traces
 data/test
@@ -16,8 +21,10 @@ data/test
 dataset/out
 
 model/out
-dataset_train.csv
-files_processed_train.csv
-dataset_test.csv
-files_processed_test.csv
+model/tuning.py
+model/error_map_old_dataset.py
+model/scatter_plot_old_dataset.py
+model/scatter_plot_eenergy_model.py
+
+model/ne_110m_admin_0_countries
 runs

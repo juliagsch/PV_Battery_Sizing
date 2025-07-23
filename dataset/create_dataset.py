@@ -35,13 +35,13 @@ def process_pair(args):
 
     try:
         if op == "no_ev":
-            command = f"{base_path}/sim_noEV 1250 460 70 225 1 {eue_target} 0.9 365 {load_file} {solar_file}"
+            command = f"{base_path}/sim_noEV 1250 460 20 30 1 {eue_target} 0.9 365 {load_file} {solar_file}"
             result = subprocess.run(command.split(), stdout=subprocess.PIPE, text=True)
             result = result.stdout.split("\t")
             battery, solar = result[0], result[1]
 
             # Exclude sizings where the simulator was not able to find an optimum and returned inf
-            if float(battery) > 225 or float(solar) > 70:
+            if float(battery) > 30 or float(solar) > 20:
                 return True
 
             with open(solar_file, 'r') as file:
@@ -53,13 +53,13 @@ def process_pair(args):
             ev_data = [op, False, False, False, False, False, 0, 0, 0, 0, 0]
             line = solar_trace + load_trace + ev_data + [eue_target, battery, solar]
         else:
-            command = f"{base_path}/sim_EV 1250 460 70 225 1 {eue_target} 0.9 365 {load_file} {solar_file} 0.8 0.2 {ev.battery_size_kwh} 7.4 {op} {ev_path} {ev.min_charge_kwh}"
+            command = f"{base_path}/sim_EV 1250 460 20 30 1 {eue_target} 0.9 365 {load_file} {solar_file} 0.8 0.2 {ev.battery_size_kwh} 7.4 {op} {ev_path} {ev.min_charge_kwh}"
             result = subprocess.run(command.split(), stdout=subprocess.PIPE, text=True)
             result = result.stdout.split("\t")
             battery, solar = result[0], result[1]
 
             # Exclude sizings where the simulator was not able to find an optimum and returned inf
-            if float(battery) > 225 or float(solar) > 70:
+            if float(battery) > 30 or float(solar) > 20:
                 return True
             
             with open(solar_file, 'r') as file:
