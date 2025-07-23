@@ -16,7 +16,7 @@ PVWATTS_KEY= os.getenv("PVWATTS_KEY")
 base_url = "https://developer.nrel.gov/api/pvwatts/v8.json"
 
 # Output dir
-os.makedirs("./data/solar/pvwatts", exist_ok=True)
+os.makedirs("./data/solar/original", exist_ok=True)
 
 # Include worldwide locations
 lat_min, lat_max = -70.0, 70.0
@@ -53,7 +53,7 @@ while success_count<target_file_count:
     if response.status_code == 200:
         data = response.json()
         ac = data["outputs"]["ac"]
-        with open(f'./data/solar/pvwatts/{lat}_{lon}.txt', 'w', newline='') as f:
+        with open(f'./data/solar/original/{lat}_{lon}.txt', 'w', newline='') as f:
             wr = csv.writer(f, delimiter=',')
             for value in ac:
                 wr.writerow([value / 1000.0])
@@ -82,7 +82,7 @@ while success_count<target_file_count:
         if response.status_code == 200:
             data = response.json()
             ac = data["outputs"]["ac"]
-            with open(f'./data/solar/pvwatts/{lat}_{lon}.txt', 'w', newline='') as f:
+            with open(f'./data/solar/original/{lat}_{lon}.txt', 'w', newline='') as f:
                 wr = csv.writer(f, delimiter=',')
                 for value in ac:
                     wr.writerow([value / 1000.0])

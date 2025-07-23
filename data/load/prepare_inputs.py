@@ -5,7 +5,7 @@ import os
 import json
 
 input_path = "./data/load/faraday"
-output_path = "./data/load/faraday_processed"
+output_path = "./data/load/original"
 
 def process_responses(input_file):
     with open(input_file, 'r') as file:
