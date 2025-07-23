@@ -1,6 +1,6 @@
 """
-Increase number of load samples by adding noise and shifting the original traces. Additionally, the peaks in the load curves are 
-shifted in time according to eating habits in Sweden, Germany, Spain and Italy. The original load curves are based on UK data for which
+Increase number of load samples by adding noise and scaling the original traces. Additionally, the peaks in the load curves are 
+shifted in time according to eating habits in different countries. The original load curves are based on UK data for which
 we assume the following eating schedule:
 Breakfast: 8.00
 Lunch: 13.00
@@ -10,12 +10,8 @@ import numpy as np
 import os
 import random
 
-def get_load_files():
-    files = []
-    for dir in ["averaged_week", "original"]:
-        files = files + [f"./data/load/faraday_yearly/{dir}/{f}" for f in os.listdir(f"./data/load/faraday_yearly/{dir}") if f.endswith('.txt')]
-    return files
-
+def get_load_files(split):
+    return [f"./data/load/{split}/{f}" for f in os.listdir(f"./data/load/{split}") if f.endswith('.txt')]
 
 def add_noise(time_series, mean=0.0, stddev=0.1):
     """
@@ -23,31 +19,33 @@ def add_noise(time_series, mean=0.0, stddev=0.1):
     """
     # Gaussian noise generation
     noise = np.random.normal(mean, stddev, len(time_series))
-
-    # Avoid extreme spikes by averaging with the noise in the previous time step.
-    for i in range(1, len(noise)):
-        noise[i] = (noise[i-1]+noise[i])/2
-
     # Adding noise to the original time series and ensure that values aren't negative
-    noisy_series = np.clip(time_series + noise, 0, None)
+    noisy_series = np.clip(time_series + noise, 0.05, None)
 
     return noisy_series
 
-def scale_time_series(time_series, shift_range=(0.5, 2)):
+def scale_time_series(time_series, yearly_load_range=(1000, 15000)):
     """
     Shifts the entire time series up or down by a random factor in shift_range.
     """
-    shift_value = np.random.uniform(*shift_range)
-    shifted_series = [t*shift_value for t in time_series]
+    current_load = np.sum(time_series)
+    target_load = np.random.uniform(*yearly_load_range)
+    difference = target_load - current_load
+    # Add constant load in each timestep
+    add = (np.random.uniform(0.1,0.5)*difference) / 8760
+    # Scale the time series to match the target load
+    factor = target_load / (current_load+(add*8760))
+    shifted_series = [(t+add)*factor for t in time_series]
     return shifted_series
 
-def shift_sweden(time_series):
+def shift_B(time_series):
     """
     Shifts the time series to match Swedish eating habits.
     Breakfast: 7.00
     Lunch: 12.00
     Dinner: 17.00
     """
+    # Define hours during which we shift
     morning_hour = random.randint(0,4)
     evening_hour = random.randint(20,22)
     for day in range(365):
@@ -61,13 +59,14 @@ def shift_sweden(time_series):
     
     return time_series
 
-def shift_germany(time_series):
+def shift_C(time_series):
     """
     Shifts the time series to match German eating habits.
     Breakfast: 8.00
     Lunch: 13.00
     Dinner: 19.00
     """
+    # Define hours during which we shift
     afternoon_hour = random.randint(14,15)
     evening_hour = random.randint(21,22)
     for day in range(365):
@@ -81,13 +80,14 @@ def shift_germany(time_series):
     
     return time_series
 
-def shift_italy(time_series):
+def shift_D(time_series):
     """
     Shifts the time series to match Italian eating habits.
     Breakfast: 8.00
     Lunch: 13.00
     Dinner: 20.00
     """
+    # Define hours during which we shift
     afternoon_hour = random.randint(14,15)
     evening_hour = random.randint(21,22)
     for day in range(365):
@@ -103,13 +103,14 @@ def shift_italy(time_series):
     
     return time_series
 
-def shift_spain(time_series):
+def shift_E(time_series):
     """
     Shifts the time series to match Spanish eating habits.
     Breakfast: 9.00
     Lunch: 14.00
     Dinner: 21.00
     """
+    # Define hours during which we shift
     morning_hour = random.randint(0,5)
     afternoon_hour = random.randint(14,15)
     evening_hour = 22
@@ -131,28 +132,24 @@ def shift_spain(time_series):
 
 
 # Create noisy traces
-duplicates_per_trace = 8
-load_files = get_load_files()
+country_profiles = [shift_D, shift_C, shift_E, shift_B]
 
-out_dir = f"./data/load/faraday_yearly/noisy"
-os.makedirs(out_dir, exist_ok=True)
-
-country_profiles = [shift_italy, shift_germany, shift_spain, shift_sweden]
-
-for i in range(duplicates_per_trace):
+for split in ["train", "test", "val"]:
+    load_files = get_load_files(split)
     for filepath in load_files:
         trace = np.loadtxt(filepath, delimiter=",")
 
-        # Choose a random country profile according to which the load curve will be shifted in time
-        augmented_series = random.choice(country_profiles)(trace)
+        for i, country in enumerate(["B", "C", "D", "E"]):
+            augmented_series = country_profiles[i](trace)
 
-        augmented_series = add_noise(augmented_series)
-        augmented_series = scale_time_series(augmented_series)
+            augmented_series = add_noise(augmented_series)
+            augmented_series = scale_time_series(augmented_series)
+            augmented_series = np.clip(augmented_series, 0.05, None)
 
-        filename = os.path.basename(filepath).split(".")[0]
-        output_path = os.path.join(out_dir, filename+f"_{i}.txt")
+            filename = os.path.basename(filepath).split(".")[0]
+            output_path = os.path.join(f"./data/load/{split}", filename+f"_{country}.txt")
 
-        with open(output_path, 'w') as f:
-            for value in augmented_series:
-                f.write(f"{value}\n")
+            with open(output_path, 'w') as f:
+                for value in augmented_series:
+                    f.write(f"{value}\n")
 

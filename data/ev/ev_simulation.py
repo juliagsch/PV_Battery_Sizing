@@ -1,13 +1,12 @@
 """
 Code adapted from https://github.com/amcberkes/SPAGHETTI.
 """
+
 # This generator does not allow for fine-grained control of the non-commuting trips, use ev_simulation_extended.py if you wish more fine grained control over the non-commuting trips.
 # each trip is outputed separately and multiple trips on the same day are not grouped together, use merge_trips.py to merge overalpping trips.
 import argparse
-import numpy as np
 import csv
 import random
-import os
 
 class ElectricVehicle:
     def __init__(self, battery_size, max_soc, min_soc, consumption):

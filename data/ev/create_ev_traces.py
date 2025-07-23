@@ -1,5 +1,5 @@
 """
-Create labeled dataset with Pecan Street load traces for testing.
+Create EV traces using SPAGHETTI by Berkes et. al. https://doi.org/10.1186/s42162-024-00314-6
 """
 import random
 import subprocess

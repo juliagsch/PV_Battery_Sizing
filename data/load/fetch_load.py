@@ -8,6 +8,9 @@ import requests
 import os
 import json
 
+from dotenv import load_dotenv
+load_dotenv()  
+
 FARADAY_KEY = os.getenv("FARADAY_KEY")
 url = "https://faraday-api-gateway-28g4j071.nw.gateway.dev/v4/predict/"
 
@@ -15,7 +18,7 @@ days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sun
 months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 days_per_month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
-os.makedirs('./data/load/faraday_raw/', exist_ok=True)
+os.makedirs('./data/load/faraday/', exist_ok=True)
 
 headers = {
     "accept": "application/json",
@@ -23,38 +26,16 @@ headers = {
     "x-api-key": FARADAY_KEY
 }
 
+# This is an example payload. In reality, it has to be split up into smaller junks as there will likely be timeouts for large requests.
+# Experience showed that requesting 500 buildings at a time is managable.
 def get_payload(day, month):
     return {
         "day_of_week": day,
         "month_of_year": month,
         "population": [
             {
-                "name": "NoLCT",
-                "count": 500,
-                "attributes": {
-                    "energy_rating": "Any",
-                    "urbanity": "Any",
-                    "property_type": "Any House Types",
-                    "is_mains_gas": "Any",
-                    "lct": ["Has No LCTs"],
-                    "tariff_type": "any"
-                }
-            },
-            {
-                "name": "EV",
-                "count": 200,
-                "attributes": {
-                    "energy_rating": "Any",
-                    "urbanity": "Any",
-                    "property_type": "Any House Types",
-                    "is_mains_gas": "Any",
-                    "lct": ["Has Electric Vehicles"],
-                    "tariff_type": "any"
-                }
-            },
-            {
                 "name": "DetachedA",
-                "count": 59,
+                "count": 100,
                 "attributes": {
                 "energy_rating": "A/B/C",
                 "urbanity": "Urban",
@@ -68,7 +49,7 @@ def get_payload(day, month):
             },
             {
                 "name": "DetachedD",
-                "count": 41,
+                "count": 100,
                 "attributes": {
                 "energy_rating": "D/E",
                 "urbanity": "Urban",
@@ -82,7 +63,7 @@ def get_payload(day, month):
             },
             {
                 "name": "TerracedA",
-                "count": 59,
+                "count": 100,
                 "attributes": {
                 "energy_rating": "A/B/C",
                 "urbanity": "Urban",
@@ -96,7 +77,7 @@ def get_payload(day, month):
             },
             {
                 "name": "TerracedD",
-                "count": 41,
+                "count": 100,
                 "attributes": {
                 "energy_rating": "D/E",
                 "urbanity": "Urban",
@@ -110,7 +91,7 @@ def get_payload(day, month):
             },
             {
                 "name": "Semi-detachedA",
-                "count": 59,
+                "count": 100,
                 "attributes": {
                 "energy_rating": "A/B/C",
                 "urbanity": "Urban",
@@ -124,12 +105,54 @@ def get_payload(day, month):
             },
             {
                 "name": "Semi-detachedD",
-                "count": 41,
+                "count": 100,
                 "attributes": {
                 "energy_rating": "D/E",
                 "urbanity": "Urban",
                 "property_type": "Semi-detached",
                 "is_mains_gas": "Has Mains Gas",
+                "lct": [
+                "Has No LCTs"
+                ],
+                "tariff_type": "any"
+                }
+            },
+            {
+                "name": "DetachedRemote",
+                "count": 200,
+                "attributes": {
+                "energy_rating": "Any",
+                "urbanity": "Remote",
+                "property_type": "Detached",
+                "is_mains_gas": "Any",
+                "lct": [
+                "Has No LCTs"
+                ],
+                "tariff_type": "any"
+                }
+            },
+            {
+                "name": "TerracedRemote",
+                "count": 200,
+                "attributes": {
+                "energy_rating": "Any",
+                "urbanity": "Remote",
+                "property_type": "Terraced",
+                "is_mains_gas": "Any",
+                "lct": [
+                "Has No LCTs"
+                ],
+                "tariff_type": "any"
+                }
+            },
+            {
+                "name": "Semi-detachedRemote",
+                "count": 200,
+                "attributes": {
+                "energy_rating": "Any",
+                "urbanity": "Remote",
+                "property_type": "Semi-detached",
+                "is_mains_gas": "Any",
                 "lct": [
                 "Has No LCTs"
                 ],
@@ -142,6 +165,7 @@ def get_payload(day, month):
 day_idx = 0
 count = 0
 
+# Iterate through days and months
 for month_idx, total_month_days in enumerate(days_per_month):
     month_day = 0
     while month_day<total_month_days:
@@ -152,13 +176,13 @@ for month_idx, total_month_days in enumerate(days_per_month):
         if response.status_code == 200:
             data = response.json()
 
-            with open(f"./data/load/faraday_raw/day_{count}.json", "w") as f:
+            with open(f"./data/load/faraday/day_{count}.json", "w") as f:
                 json.dump(data, f, indent=4)
-
-            day_idx = (day_idx + 1)%7
-            count += 1
-            month_day += 1
         else: 
             print(f"Error: {response.status_code}, {response.text}")
+
+        day_idx = (day_idx + 1)%7
+        count += 1
+        month_day += 1
 
 print(f"Fetched profiles for {count} days")

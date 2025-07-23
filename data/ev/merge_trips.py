@@ -1,5 +1,5 @@
 """
-Code adapted from https://github.com/amcberkes/SPAGHETTI.
+Code copied from https://github.com/amcberkes/SPAGHETTI.
 """
 import csv
 import os

@@ -4,30 +4,6 @@ import matplotlib.pyplot as plt
 import os
 import random
 
-def sum_values_in_file(filepath):
-    with open(filepath, 'r') as f:
-        return sum(float(line.strip()) for line in f if line.strip())
-
-def plot_histogram_of_sums(folder_paths, title="", x_label="", y_label=""):
-    sums = []
-    for folder_path in folder_paths:
-        for filename in os.listdir(folder_path):
-            if filename.endswith('.txt'):
-                filepath = os.path.join(folder_path, filename)
-                try:
-                    file_sum = sum_values_in_file(filepath)
-                    sums.append(file_sum)
-                except Exception as e:
-                    print(f"Skipping {filename} due to error: {e}")
-
-    # Plot histogram
-    plt.hist(sums, bins=30, edgecolor='black')
-    plt.title(title)
-    plt.xlabel(x_label)
-    plt.ylabel(y_label)
-    plt.grid(True)
-    plt.show()
-
 def read_and_process_hourly(file_path, average, day=0, num_hours=24):
     with open(file_path, 'r') as file:
         # Read all lines and convert them to floats
@@ -76,13 +52,9 @@ def read_and_process_monthly(file_path):
     return monthly_averages
 
 def analyze_and_plot_daily(load_files, average, datatype):
-    plt.figure(figsize=(15, 10))
-    day = random.randint(0,364)
-
-    print(day)
-
+    plt.figure(figsize=(12, 6))
     if(len(load_files)>10):
-        load_files = random.sample(load_files, 10)
+        load_files = random.sample(load_files, 1)
 
     num_days = 1
     num_hours = num_days*24
@@ -90,7 +62,7 @@ def analyze_and_plot_daily(load_files, average, datatype):
         num_hours = 24
     
     for load_file in load_files:
-        hourly = read_and_process_hourly(load_file, average, day=day,num_hours=num_hours)
+        hourly = read_and_process_hourly(load_file, average, day=random.randint(0,364),num_hours=num_hours)
         label = load_file
         plt.plot(range(num_hours), hourly, label=label, marker='o')
     
@@ -101,7 +73,6 @@ def analyze_and_plot_daily(load_files, average, datatype):
     plt.grid(True)
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f'./data/plots/average_daily_{datatype.lower()}.png')
     plt.show()
 
 def analyze_and_plot_weekly(files, datatype, average):
@@ -120,7 +91,6 @@ def analyze_and_plot_weekly(files, datatype, average):
     plt.grid(True)
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f'./data/plots/average_weekly_{datatype.lower()}.png')
     plt.show()
 
 def analyze_and_plot_monthly(files, datatype):
@@ -132,7 +102,6 @@ def analyze_and_plot_monthly(files, datatype):
         total += np.add(total, monthly)/len(files)
     
     plt.plot(range(12), total, label="average", marker='o')
-    
     plt.title(f'Average {datatype} per Day')
     plt.xlabel('Month of the Year')
     plt.ylabel(datatype)
@@ -140,79 +109,23 @@ def analyze_and_plot_monthly(files, datatype):
     plt.grid(True)
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f'./data/plots/average_monthly_{datatype.lower()}.png')
     plt.show()
 
-def plot_comparison(average):
-    """Plot the original solar traces against the modified ones."""
-    plt.figure(figsize=(10, 5))
-    # Noisy and original solar trace close to London
-    solar_files = ["data/solar/augmented/51.27165376446782_-1.7111768025104812_0.txt", "data/solar/pvwatts_original/51.27165376446782_-1.7111768025104812.txt"]
-    # Days in Jan, Apr and July to compare
-    days = [0, 92, 184]
-    for day in days:
-        for solar_file in solar_files:
-            hourly = read_and_process_hourly(solar_file, average=average, day=day)
-            if "augmented" in solar_file:
-                label = "Augmented"
-                line = "--"
-            else:
-                label = "Original"
-                line = "-"
-            if day == 0:
-                color = "tab:gray"
-                label += " Jan"
-            elif day == 92:
-                color = "tab:blue"
-                label += " Apr"
-            else:
-                color = "tab:orange"
-                label += " Jul"
-            plt.plot(range(24), hourly, label=label,linestyle=line, color=color)
 
-    plt.title('Average Hourly PV Production')
-    plt.xlabel('Hour of the Day')
-    plt.ylabel('Average Production (kWh)')
-    plt.xticks(range(24), labels=[f'{hour}:00' for hour in range(24)], rotation=45)
-    plt.grid(True)
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig('./data/solar/augmented_vs_original.png', transparent=True)
-    plt.show()
+def get_load_files(split):
+    return [f"./data/load/{split}/{f}" for f in os.listdir(f"./data/load/{split}") if f.endswith('.txt')]
 
-def get_load_files():
-    files = []
-    for type in ["original", "averaged_week", "noisy"]:
-        files = files + [f"./data/load/faraday_yearly/{type}/{f}" for f in os.listdir(f"./data/load/faraday_yearly/{type}") if f.endswith('.txt')]
-    return files
-
-def get_test_files():
-    files = []
-    for type in ["california"]:
-        files = files + [f"./data/test/load/{type}/15min/{f}" for f in os.listdir(f"./data/test/load/{type}/15min") if f.endswith('.txt')]
-    for type in ["scaled"]:
-        files = files + [f"./data/test/load/{type}/{f}" for f in os.listdir(f"./data/test/load/{type}") if f.endswith('.txt')]
-    return files
-
-def get_solar_files():
-    return [f"./data/solar/pvwatts_original/{f}" for f in os.listdir("./data/solar/pvwatts_original") if f.endswith('.txt')] + [f"./data/solar/augmented/{f}" for f in os.listdir("./data/solar/augmented") if f.endswith('.txt')]
-
-# Histograms
-# plot_histogram_of_sums('./data/solar/augmented')
-# plot_histogram_of_sums('./data/load/faraday_yearly/noisy_month')
+def get_solar_files(split):
+    return [f"./data/solar/{split}/{f}" for f in os.listdir(f"./data/solar/{split}") if f.endswith('.txt')]
 
 # Plot the data
-average = False
-load_files = get_load_files()
-# file = "DetachedA_1"
-# load_files = [f"./data/load/faraday_yearly/noisy_week/{file}.txt",  f"./data/load/faraday_yearly/noisy_month/{file}.txt", f"./data/load/faraday_yearly/averaged_month/{file}.txt", f"./data/load/faraday_yearly/averaged_week/{file}.txt", f"./data/load/faraday_yearly/original/{file}.txt"]
+average = True
+load_files = get_load_files("train")
 analyze_and_plot_daily(load_files, datatype="Load", average=average)
 analyze_and_plot_weekly(load_files, datatype="Load", average=average)
 analyze_and_plot_monthly(load_files, datatype="Load")
 
-solar_files = get_solar_files()
-# solar_files = ["./data/solar/augmented/-1.5700415108701549_18.806886679398247.txt", "./data/solar/pvwatts_original/-1.5700415108701549_18.806886679398247.txt"]
+solar_files = get_solar_files("train")
 analyze_and_plot_daily(solar_files, datatype="Solar", average=average)
 analyze_and_plot_weekly(solar_files, datatype="Solar", average=average)
 analyze_and_plot_monthly(solar_files, datatype="Solar")
-plot_comparison(average=False)
