@@ -1,8 +1,8 @@
-# Fast Optimal Sizing of Domestic PV Energy Systems
+# SolExplore: A Successive Refinement Approach for Sizing of PV and Storage Systems in EV-Enabled Homes
 
 ## Overview
 
-This project provides a framework for rapidly determining the optimal sizing of battery and photovoltaic (PV) systems for residential applications. It automates the process of fetching and processing load and solar irradiance data, creating a labeled dataset and training a machine learning model for fast sizing predictions.
+This project provides a framework for rapidly determining the optimal sizing of battery and photovoltaic (PV) systems for buildings with and without electric vehicles (EVs). It automates the process of fetching and processing load and solar irradiance data, creating a labeled dataset and training a machine learning model for fast sizing predictions.
 
 ## Project Workflow
 
@@ -10,7 +10,7 @@ The project follows these key steps:
 
 1.  **Data Acquisition:** Obtaining hourly load and solar generation data over a one-year period. Additionally, EV traces are created using SPAGHETTI [4].
 2.  **Data Preparation:** Cleaning, processing, and augmenting the raw data to create a comprehensive dataset.
-3.  **Optimal Sizing Labeling:** Utilizing a simulations [3,5] to calculate the optimal battery and PV sizes for each combination of load and solar profiles.
+3.  **Optimal Sizing Labeling:** Utilizing simulators [3,5] to calculate the optimal battery and PV sizes for each combination of load and solar profiles.
 4.  **Model Training:** Training an MLP to predict optimal sizing based on load and solar data.
 5.  **Model Evaluation:** Evaluating the model on different datasets to test robustness to out-of-sample data.
 
@@ -30,7 +30,7 @@ The process for acquiring and preparing household electricity load data involves
 The process for acquiring and preparing solar photovoltaic generation data involves the following steps:
 
 1.  **Fetching Solar Traces:** The `data/solar/fetch_solar.py` script retrieves hourly solar irradiance data using the PVWatts API [2].
-    Some locations may have insufficient weather data available which results in failed requests for those locations (in our case mainly regions of Russia, Kazakhstan and Argentina). A heatmap of the origins of our data is shown in Figure **Figure 1**.
+    Some locations may have insufficient weather data available which results in failed requests for those locations (in our case mainly regions of Russia, Kazakhstan and Argentina). A heatmap of the origins of our data is shown in the figure below.
 2.  **Split** The data is split into test, validation and training sets using `data/split_dataset.py`.
 3.  **Data Augmentation:** Similar to the load data, `data/solar/add_noisy_data.py` augments the original solar traces to expand the dataset.
 
