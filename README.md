@@ -4,6 +4,8 @@
 
 This project provides a framework for rapidly determining the optimal sizing of battery and photovoltaic (PV) systems for buildings with and without electric vehicles (EVs). It automates the process of fetching and processing load and solar irradiance data, creating a labeled dataset and training a machine learning model for fast sizing predictions.
 
+The trained model is integrated into a successive refinement approach and can be tested at: https://solexplore.uk
+
 ## Project Workflow
 
 The project follows these key steps:
